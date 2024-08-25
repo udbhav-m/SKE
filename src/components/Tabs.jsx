@@ -4,23 +4,14 @@ import TabButton from "./TabButton";
 import Course from "./Course";
 import { useNavigate } from "react-router-dom";
 
-function Tabs({ types, courses }) {
+function Tabs({ types, registeredCourses, unregisteredCourses }) {
   const [isActive, setIsActive] = useState(0);
   const [unReg, setUnReg] = useState(true);
-  const [registeredCourses, setRegistered] = useState();
-  const [unregisteredCourses, setUnregistered] = useState();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const tUnReg = courses.filter((each) => each?.registered === false);
-    const tReg = courses.filter((each) => each?.registered === true);
-    setUnregistered(tUnReg);
-    setRegistered(tReg);
-  }, [courses]);
 
   return (
     <>
-      <div className="flex gap-10 p-2">
+      <div className="flex gap-10 p-2 mx-16">
         {types.map((each, index) => (
           <TabButton
             type={each}
@@ -35,17 +26,24 @@ function Tabs({ types, courses }) {
       <div
         className={`${
           unReg ? "visible" : "hidden"
-        } space-y-2 p-4 transition-all duration-100  `}
+        } p-4 transition-all duration-100 flex justify-between flex-wrap gap-4 mx-16 `}
       >
         {unregisteredCourses &&
           unregisteredCourses.map((course) => {
             return (
               <Course
+                image={course?.image}
                 name={course?.name}
                 description={course?.description}
-                date={course?.date}
-                label={"Pay-now"}
-                onClick={() => navigate(`/register/${course?.name}`)}
+                date={course?.date_time}
+                label={"Pay now"}
+                onClick={() => {
+                  navigate(`/register/${course?.id}`, {
+                    state: { courseDetails: course },
+                  });
+                  // localStorage.setItem(courseName, course.name);
+                  // localStorage.setItem(amount, course.inr_amount);
+                }}
               />
             );
           })}
@@ -53,15 +51,16 @@ function Tabs({ types, courses }) {
       <div
         className={`${
           !unReg ? "visible" : "hidden"
-        } space-y-2 p-4 transition-all duration-100`}
+        } p-4 transition-all duration-100 flex flex-wrap gap-4`}
       >
         {registeredCourses &&
           registeredCourses.map((course) => {
             return (
               <Course
+                image={course?.image}
                 name={course?.name}
                 description={course?.description}
-                date={course?.date}
+                date={course?.date_time}
                 label={"Download receipt"}
               />
             );

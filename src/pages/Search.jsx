@@ -3,21 +3,62 @@ import BottomText from "../components/BottomText";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import { useState } from "react";
+// import { collection, getDocs } from "firebase/firestore";
+// import { db } from "../firebase/firebaseConfig";
+
+const docs = [
+  {
+    id: "002oJ4AZ7BKNuu05ZIQdQCkFMvOW",
+    name: "Minakshi Mitra",
+    phone: "+910123456789",
+    courses: ["15cfc1c3-5b72-4240-9049-9e70ba85cd47", "new_cod"],
+  },
+  {
+    id: "00lvyQ6FgkXnNIeGeg1KqODvIq52",
+    name: "Karthini",
+    email: "test@gmail.com",
+    courses: ["15cfc1c3-5b72-4240-9049-9e70ba85cd47", "new_cod"],
+  },
+];
 
 function Search() {
+  localStorage.clear();
   const navigate = useNavigate();
   const [id, setId] = useState("");
   const [loginWithNumber, setLoginWithNumber] = useState(false);
   const [err, setError] = useState("");
 
+  async function findUser() {
+    let foundDoc = false;
+    // const docs = await getDocs(collection(db, "users"));
+    docs.forEach((doc) => {
+      // let data = doc.data();
+      let data = doc;
+      if (
+        (loginWithNumber && data.phone == "+91" + id) ||
+        (!loginWithNumber && data.email == id)
+      ) {
+        // foundDoc = doc.id;
+        foundDoc = data.id;
+        localStorage.setItem(loginWithNumber ? "phone" : "email", id);
+        localStorage.setItem("docId", foundDoc);
+      }
+    });
+    if (foundDoc && localStorage.getItem("docId")) {
+      navigate("/home");
+    } else {
+      setError("User not found");
+      setTimeout(() => setError(""), 5000);
+    }
+  }
+
   function handleValidation() {
     let phone_regex = /^[6-9]\d{9}$/;
     let email_regex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
     let isValid = loginWithNumber ? phone_regex.test(id) : email_regex.test(id);
-    console.log(isValid);
+    // console.log(isValid);
     if (isValid) {
-      localStorage.setItem("user", id);
-      navigate("/home");
+      findUser();
     } else {
       setError("Invalid details");
       setTimeout(() => setError(""), 5000);
@@ -40,10 +81,8 @@ function Search() {
             type={loginWithNumber ? "number" : "email"}
             placeholder={loginWithNumber ? "Mobile number" : "Email address"}
           />
-
           <Button label={"Find"} onClick={handleValidation} />
           <h1 className="font-semibold text-red-500">{err}</h1>
-
           <BottomText
             label={`Find with `}
             to={loginWithNumber ? "Email address" : "Mobile number"}

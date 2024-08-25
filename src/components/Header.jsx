@@ -1,10 +1,32 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 
 export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [currentUser, setCurrentUser] = useState("loading...");
 
-  const currentUser = localStorage.getItem("user");
+  useEffect(() => {
+    if (location.pathname !== "/" && location.pathname !== "/search") {
+      const interval = setInterval(() => {
+        const name = localStorage.getItem("name");
+        if (name) {
+          setCurrentUser(name);
+          clearInterval(interval); 
+        } else {
+          setCurrentUser("unknown user");
+        }
+      }, 100); 
+
+      return () => clearInterval(interval); 
+    }
+  }, [location]);
+
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/", { replace: true });
+    window.location.reload();
+  };
 
   return (
     <>
@@ -15,6 +37,7 @@ export default function Header() {
             Sri Kalki Events
           </h1>
         </div>
+        
         <div
           className={
             location.pathname == "/" || location.pathname == "/search"
@@ -26,10 +49,7 @@ export default function Header() {
             {"You're paying for: " + currentUser}
           </h1>
           <button
-            onClick={() => {
-              localStorage.removeItem("user");
-              navigate("/");
-            }}
+            onClick={handleLogout}
             className=" bg-secondary text-custom-brown font-semibold px-2 rounded w-fit"
           >
             Pay for a different user

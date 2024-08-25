@@ -1,16 +1,17 @@
 import HButton from "./HButton";
 
-function Course({ name, description, date, label, onClick }) {
+function Course({ image, name, description, date, label, onClick }) {
   return (
-    <div className=" shadow-lg rounded w-12/12 p-4 flex justify-between items-center border border-custom-brown hover:bg-primary hover:bg-opacity-10 transition-all duration-200">
-      <div className="space-y-2">
+    <div className=" md:w-5/12 lg:w-96 lg:max-w-[26rem] shadow-2xl rounded-md  justify-around items-center hover:bg-primary hover:bg-opacity-10 transition-all duration-200 transform hover:scale-95">
+      <img className="rounded-t-md w-full" src={image} alt="Course image" srcset="" />
+      <div className="space-y-2 p-4 ">
         <h1>
           <b>{name}</b>
         </h1>
         <h1>{date}</h1>
         <h1>{description}</h1>
       </div>
-      <div className=" ">
+      <div className="p-2">
         <HButton onClick={onClick} label={label} />
       </div>
     </div>
