@@ -41,6 +41,7 @@ function Search() {
         // foundDoc = doc.id;
         foundDoc = data.id;
         localStorage.setItem(loginWithNumber ? "phone" : "email", id);
+        localStorage.setItem("name", data.name);
         localStorage.setItem("docId", foundDoc);
       }
     });
