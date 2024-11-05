@@ -3,23 +3,8 @@ import BottomText from "../components/BottomText";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import { useState } from "react";
-// import { collection, getDocs } from "firebase/firestore";
-// import { db } from "../firebase/firebaseConfig";
-
-const docs = [
-  {
-    id: "002oJ4AZ7BKNuu05ZIQdQCkFMvOW",
-    name: "Minakshi Mitra",
-    phone: "+910123456789",
-    courses: ["15cfc1c3-5b72-4240-9049-9e70ba85cd47", "new_cod"],
-  },
-  {
-    id: "00lvyQ6FgkXnNIeGeg1KqODvIq52",
-    name: "Karthini",
-    email: "test@gmail.com",
-    courses: ["15cfc1c3-5b72-4240-9049-9e70ba85cd47", "new_cod"],
-  },
-];
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../firebase/firebaseConfig";
 
 function Search() {
   localStorage.clear();
@@ -30,16 +15,14 @@ function Search() {
 
   async function findUser() {
     let foundDoc = false;
-    // const docs = await getDocs(collection(db, "users"));
+    const docs = await getDocs(collection(db, "users"));
     docs.forEach((doc) => {
-      // let data = doc.data();
-      let data = doc;
+      let data = doc.data();
       if (
         (loginWithNumber && data.phone == "+91" + id) ||
         (!loginWithNumber && data.email == id)
       ) {
-        // foundDoc = doc.id;
-        foundDoc = data.id;
+        foundDoc = doc.id;
         localStorage.setItem(loginWithNumber ? "phone" : "email", id);
         localStorage.setItem("name", data.name);
         localStorage.setItem("docId", foundDoc);

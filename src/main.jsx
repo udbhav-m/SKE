@@ -6,6 +6,7 @@ import "./index.css";
 import Search from "./pages/Search.jsx";
 import Home from "./pages/Home.jsx";
 import Register from "./pages/Register.jsx";
+import Receipt from "./components/receipt.jsx";
 
 const router = createBrowserRouter([
   {
@@ -28,10 +29,16 @@ const router = createBrowserRouter([
         path: "/register/:course",
         element: <Register />,
       },
+      {
+        path: "/receipt",
+        element: <Receipt />,
+      },
     ],
   },
 ]);
 
 ReactDOM.createRoot(document.getElementById("root")).render(
+  // <React.StrictMode>
   <RouterProvider router={router} />
+  // </React.StrictMode>
 );

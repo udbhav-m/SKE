@@ -2,8 +2,8 @@ import HButton from "./HButton";
 
 function Course({ image, name, description, date, label, onClick }) {
   return (
-    <div className=" md:w-5/12 lg:w-96 lg:max-w-[26rem] shadow-2xl rounded-md  justify-around items-center hover:bg-primary hover:bg-opacity-10 transition-all duration-200 transform hover:scale-95">
-      <img className="rounded-t-md w-full" src={image} alt="Course image" srcset="" />
+    <div className=" md:w-5/12 lg:w-96 lg:max-w-[26rem] shadow-2xl rounded-md items-center hover:bg-primary hover:bg-opacity-10 transition-all duration-200 transform hover:scale-95">
+      <img className="rounded-t-md w-full h-[16rem] " src={image} alt="Course image" />
       <div className="space-y-2 p-4 ">
         <h1>
           <b>{name}</b>
@@ -18,4 +18,4 @@ function Course({ image, name, description, date, label, onClick }) {
   );
 }
 
-export default Course;
+export default Course
