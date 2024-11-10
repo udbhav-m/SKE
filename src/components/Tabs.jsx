@@ -23,15 +23,27 @@ function Tabs({ types, registeredCourses, unregisteredCourses, userPayments }) {
   const [unReg, setUnReg] = useState(true);
   const navigate = useNavigate();
 
-  const handleDownloadPDF = (courseId) => {
+  function handleOnPay(course) {
+    navigate(`/register/${course?.id}`, {
+      state: { courseDetails: course },
+    });
+  }
+
+  const handleDownloadPDF = (course) => {
     const paymentData = userPayments.find(
-      (payment) => payment.courseId === courseId
+      (payment) => payment.courseId === course.id
     );
+
     if (paymentData) {
+      paymentData.courseName = course.name;
+
+      if (!paymentData.amount) {
+        paymentData.amount = course.inr_amount;
+      }
+
       navigate("/receipt", { state: { receiptData: paymentData } });
     }
   };
-  
 
   return (
     <>
@@ -62,11 +74,7 @@ function Tabs({ types, registeredCourses, unregisteredCourses, userPayments }) {
               description={course?.description}
               date={formatDateTime(course?.date_time)} // Format date_time here
               label={"Pay now"}
-              onClick={() => {
-                navigate(`/register/${course?.id}`, {
-                  state: { courseDetails: course },
-                });
-              }}
+              onClick={() => handleOnPay(course)}
             />
           ))}
       </div>
@@ -84,7 +92,7 @@ function Tabs({ types, registeredCourses, unregisteredCourses, userPayments }) {
               description={course?.description}
               date={formatDateTime(course?.date_time)} // Format date_time here
               label={"View receipt"}
-              onClick={() => handleDownloadPDF(course?.id)}
+              onClick={() => handleDownloadPDF(course)}
             />
           ))}
       </div>

@@ -6,7 +6,7 @@ import "./index.css";
 import Search from "./pages/Search.jsx";
 import Home from "./pages/Home.jsx";
 import Register from "./pages/Register.jsx";
-import Receipt from "./components/receipt.jsx";
+import Receipt from "./pages/receipt.jsx";
 
 const router = createBrowserRouter([
   {

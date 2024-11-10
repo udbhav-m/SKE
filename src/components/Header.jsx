@@ -1,61 +1,93 @@
-import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Menu, X } from "lucide-react"; // Assuming you're using lucide-react for the icons
 
 export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const [currentUser, setCurrentUser] = useState("loading...");
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  // This effect will run when the location path changes, ensuring that the user info is updated accordingly
   useEffect(() => {
     if (location.pathname !== "/" && location.pathname !== "/search") {
       const interval = setInterval(() => {
         const name = localStorage.getItem("name");
         if (name) {
           setCurrentUser(name);
-          clearInterval(interval); 
+          clearInterval(interval); // Stop checking once we have the name
         } else {
           setCurrentUser("unknown user");
         }
-      }, 100); 
+      }, 100);
 
-      return () => clearInterval(interval); 
+      return () => clearInterval(interval); // Cleanup the interval on unmount or path change
     }
   }, [location]);
 
   const handleLogout = () => {
     localStorage.clear();
-    navigate("/", { replace: true });
-    window.location.reload();
+    navigate("/", { replace: true }); // Redirect to the home page after logging out
+    window.location.reload(); // Optionally reload the page to reset the state
   };
 
+  const showUserInfo = location.pathname !== "/" && location.pathname !== "/search";
+
   return (
-    <>
-      <div className="p-5 shadow-xl bg-[#E5870D] flex justify-between items-center">
-        <div className="flex items-center gap-3 select-none">
-          <img src="/favicon-new.png" alt="Amma Bhagavan's Image" />
-          <h1 className="font-semibold text-xl select-none">
-            Sri Kalki Events
-          </h1>
-        </div>
-        
-        <div
-          className={
-            location.pathname == "/" || location.pathname == "/search"
-              ? "hidden"
-              : "visible"
-          }
-        >
-          <h1 className={`text-white font-semibold text-lg `}>
-            {"You're paying for: " + currentUser}
-          </h1>
+    <header className="bg-[#E5870D] shadow-lg p-2">
+      <div className="container mx-auto px-4 py-3">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-3">
+            <img
+              src="https://res.cloudinary.com/dkakfpolz/image/upload/v1731146691/AB_qjdna2.png"
+              alt="Sri Kalki Events Logo"
+              width={48}
+              height={48}
+              className="rounded-full"
+            />
+            <h1 className="font-bold text-2xl text-white hidden sm:block">Sri Kalki Events</h1>
+          </div>
+
+          {/* Show user info and logout button on non-home and non-search paths */}
+          {showUserInfo && (
+            <div className="hidden md:flex items-center space-x-4">
+              <p className="text-white font-medium">
+                You&apos;re paying for: <span className="font-bold">{currentUser}</span>
+              </p>
+              <button
+                onClick={handleLogout}
+                className="bg-white text-[#E5870D] font-semibold px-4 py-2 rounded-full hover:bg-opacity-90 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
+              >
+                Pay for a different user
+              </button>
+            </div>
+          )}
+
+          {/* Mobile menu button */}
           <button
-            onClick={handleLogout}
-            className=" bg-secondary text-custom-brown font-semibold px-2 rounded w-fit"
+            className="md:hidden text-white"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="Toggle menu"
           >
-            Pay for a different user
+            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
+
+        {/* Mobile view of user info and logout button */}
+        {showUserInfo && isMenuOpen && (
+          <div className="mt-4 md:hidden">
+            <p className="text-white font-medium mb-2">
+              You&apos;re paying for: <span className="font-bold">{currentUser}</span>
+            </p>
+            <button
+              onClick={handleLogout}
+              className="w-full bg-white text-[#E5870D] font-semibold px-4 py-2 rounded-full hover:bg-opacity-90 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
+            >
+              Pay for a different user
+            </button>
+          </div>
+        )}
       </div>
-    </>
+    </header>
   );
 }

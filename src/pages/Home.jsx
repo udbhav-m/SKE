@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Tabs from "../components/Tabs";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
+import Loader from "../components/loader";
 
 function Home() {
   const types = ["Unregistered Events", "Registered Events"];
@@ -32,20 +33,20 @@ function Home() {
   async function getUserPayments() {
     const paymentsCollection = collection(db, `users/${docId}/user_payments`);
     const paymentDocs = await getDocs(paymentsCollection);
-    const payments = paymentDocs.docs.map(doc => {
-        const data = doc.data();
-        // Check for timestamp fields and convert them
-        return {
-            id: doc.id,
-            ...data,
-            // Assuming there's a field named 'paymentDate' that is a Firestore timestamp
-            updatedDate: data.updatedDate ? new Date(data.updatedDate.seconds * 1000).toLocaleString() : null,
-        };
+    const payments = paymentDocs.docs.map((doc) => {
+      const data = doc.data();
+      // Check for timestamp fields and convert them
+      return {
+        id: doc.id,
+        ...data,
+        updatedDate: data.updatedDate
+          ? new Date(data.updatedDate.seconds * 1000).toLocaleString()
+          : null,
+      };
     });
 
     setUserPayments(payments); // Store user payments in state
-}
-
+  }
 
   async function getAllCourses() {
     const querySnapshot = await getDocs(collection(db, "events"));
@@ -77,13 +78,17 @@ function Home() {
     }
   }, [isUserLoaded]);
 
+  if (!isUserLoaded) {
+    return <Loader />;
+  }
+
   return (
     <div>
       <Tabs
         types={types}
         registeredCourses={registeredEvents}
         unregisteredCourses={unRegisteredEvents}
-        userPayments={userPayments} // Pass user payments to Tabs if needed
+        userPayments={userPayments}
       />
     </div>
   );
