@@ -39,7 +39,7 @@ export default function Header() {
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <img
-              src="https://res.cloudinary.com/dkakfpolz/image/upload/v1731146691/AB_qjdna2.png"
+              src="https://firebasestorage.googleapis.com/v0/b/abeventsdev.appspot.com/o/AB.png?alt=media&token=15eb34e1-18f5-4fa5-8d67-c82d23e5d6ab"
               alt="Sri Kalki Events Logo"
               width={48}
               height={48}

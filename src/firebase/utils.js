@@ -67,68 +67,115 @@ export async function checkPayment(
   formData
 ) {
   try {
+    console.log(bankRRN, userDocID, courseID, formData);
+    setStatus({
+      currentStatus:
+        "UPI payment request sent. Please complete payment in your UPI app.",
+      title: "Processing your payment..",
+    });
+
+    // Initial request to check payment status
     const response = await axios.post(
       import.meta.env.VITE_LISTENPAY_API + bankRRN
     );
-    setStatus(
-      "UPI payment request sent. Please complete payment in your UPI app."
-    );
 
-    if (attempt === 4)
-      setStatus(
-        "Your payment request is pending. Please approve or decline in your UPI app."
-      );
-    if (attempt === 10)
-      setStatus(
-        "Still waiting for payment confirmation. Please complete the payment on your UPI app."
-      );
+    // Handling specific stages based on the retry attempts
+    if (attempt === 4) {
+      setStatus({
+        currentStatus:
+          "Your payment request is pending. Please approve or decline in your UPI app.",
+        title: "Processing your payment..",
+      });
+    }
+    if (attempt === 10) {
+      setStatus({
+        currentStatus:
+          "Still waiting for payment confirmation. Please complete the payment on your UPI app.",
+        title: "Processing your payment..",
+      });
+    }
 
+    // If the payment was successful
     if (response.data.status === "Success") {
-      setStatus("Almost there..");
+      setStatus({
+        currentStatus: "Almost there..",
+        title: "Success",
+      });
 
       // Perform Firestore transaction to write the payment data along with other fields
       await handlePaymentTransaction(userDocID, courseID, formData);
-      setStatus("Payment successful! Thank you for your purchase.");
+      setStatus({
+        currentStatus: "Payment successful!",
+        title: "Success",
+      });
       console.log("Payment successfully recorded.");
-      setTimeout(() => setStatus(""), 10000);
+      
+      // Timeout to reset the status after showing the success message
+      setTimeout(() => {
+        setStatus({ currentStatus: "", title: "" });
+      }, 10000);
     } else if (response.data.status === "Failure") {
-      setStatus(
-        "Your payment was declined. Please initiate the payment again if needed."
-      );
-      setTimeout(() => setStatus(""), 15000);
+      // Handle failed payment
+      setStatus({
+        currentStatus:
+          "Your payment was declined. Please initiate the payment again if needed.",
+        title: "Failed",
+      });
+
+      // Timeout to reset the status after showing the failure message
+      setTimeout(() => {
+        setStatus({ currentStatus: "", title: "" });
+      }, 10000);
+      
       console.log("Payment failed.");
+      
+      // Handle failed payment transaction (to reset any state or mark as failed)
+      await handleFailedPayment(userDocID, courseID, formData);
+
     } else if (attempt < maxAttempts) {
+      // Retry logic if the payment is not confirmed and max attempts are not reached
       attempt += 1;
-      retryDelay += 3000;
+      retryDelay += 3000; // Incremental delay between retries
+
       setTimeout(
         () => checkPayment(bankRRN, setStatus, userDocID, courseID, formData),
         retryDelay
       );
       console.log("Waiting for payment confirmation...");
     } else {
-      setStatus(
-        "Payment status could not be confirmed. Please check your UPI app or contact our support."
-      );
-      setTimeout(() => setStatus(""), 10000);
+      // If maximum attempts are reached and payment status is not confirmed
+      setStatus({
+        currentStatus:
+          "Payment status could not be confirmed. Please check your UPI app or contact our support.",
+        title: "",
+      });
+      
+      // Timeout to reset the status after the message is shown
+      setTimeout(() => {
+        setStatus({ currentStatus: "", title: "" });
+      }, 10000);
       console.log("Payment failed after max attempts.");
+      
+      // No need to mark as "Failed" here, as the max attempts are exhausted but not an actual failure
     }
   } catch (error) {
     console.error("Error checking payment status:", error);
-    setTimeout(() => setStatus(""), 5000);
+
+    // Timeout to reset the status after an error occurs
+    setTimeout(() => {
+      setStatus({ currentStatus: "", title: "" });
+    }, 10000);
+    
+    // If there's an error in the process, we handle failed payment
+    await handleFailedPayment(userDocID, courseID, formData);
   }
 }
 
 // Function to handle Firestore transaction and prevent parallel writes
-async function handlePaymentTransaction(userDocID, courseID, formData) {
-  const userPaymentsRef = doc(
-    db,
-    "users",
-    userDocID,
-    "user_payments",
-    courseID
-  );
+export async function handlePaymentTransaction(userDocID, courseID, formData) {
+  const userPaymentsRef = doc(db, "users", userDocID, "user_payments", courseID);
+  const userDocRef = doc(db, "users", userDocID);
 
-  // Start a Firestore transaction
   await runTransaction(db, async (transaction) => {
     const userPaymentDoc = await transaction.get(userPaymentsRef);
 
@@ -137,10 +184,12 @@ async function handlePaymentTransaction(userDocID, courseID, formData) {
       throw new Error("This course has already been purchased.");
     }
 
-    // If the course does not exist, write payment data with additional fields
+    // Retrieve user document
+    const userDoc = await transaction.get(userDocRef);
     const emailphone = localStorage.getItem("emailphone");
     const name = localStorage.getItem("name");
 
+    // Set payment data in Firestore
     transaction.set(userPaymentsRef, {
       paymentDate: new Date().toISOString(),
       paymentStatus: "Completed", // Payment status
@@ -149,10 +198,44 @@ async function handlePaymentTransaction(userDocID, courseID, formData) {
       emailphone: emailphone, // Add email or phone
       guide: formData.dasajiName, // Add the guide from formData
       name: name, // Add name from localStorage
-      // Add any other necessary fields here
     });
+
+    if (userDoc.exists()) {
+      const courses = userDoc.data()?.courses ? userDoc.data().courses : [];
+      if (!courses.includes(courseID)) {
+        courses.push(courseID);
+        transaction.update(userDocRef, { courses: courses });
+      }
+    } else {
+      transaction.set(userDocRef, { courses: [courseID] });
+    }
   }).catch((error) => {
     console.error("Transaction failed:", error);
+    throw error;
+  });
+}
+
+export async function handleFailedPayment(userDocID, courseID) {
+  const userPaymentsRef = doc(
+    db,
+    "users",
+    userDocID,
+    "user_payments",
+    courseID
+  );
+
+  await runTransaction(db, async (transaction) => {
+    const userPaymentDoc = await transaction.get(userPaymentsRef);
+
+    if (userPaymentDoc.exists()) {
+      const paymentData = userPaymentDoc.data();
+      // If payment status is still "Pending", we mark it as "Failed"
+      if (paymentData.paymentStatus === "Pending") {
+        transaction.update(userPaymentsRef, { paymentStatus: "Failed" });
+      }
+    }
+  }).catch((error) => {
+    console.error("Failed payment transaction error:", error);
     throw error;
   });
 }

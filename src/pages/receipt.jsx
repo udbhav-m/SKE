@@ -39,7 +39,7 @@ const Receipt = () => {
           {/* Header Section */}
           <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-300">
             <img
-              src="https://res.cloudinary.com/dkakfpolz/image/upload/v1731146691/AB_qjdna2.png"
+              src="https://firebasestorage.googleapis.com/v0/b/abeventsdev.appspot.com/o/AB.png?alt=media&token=15eb34e1-18f5-4fa5-8d67-c82d23e5d6ab"
               alt="Sri Amma Bhagavan Foundation Logo"
               className="w-24"
             />

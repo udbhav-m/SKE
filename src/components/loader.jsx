@@ -4,7 +4,7 @@ export default function Loader() {
       <div className="text-center">
         <div className="relative w-24 h-24 mx-auto mb-4">
           <img
-            src="https://res.cloudinary.com/dkakfpolz/image/upload/v1730783242/ab/qeiyh0rpdyddi9xioard.png"
+            src="https://firebasestorage.googleapis.com/v0/b/abeventsdev.appspot.com/o/AB.png?alt=media&token=15eb34e1-18f5-4fa5-8d67-c82d23e5d6ab"
             alt="Loading"
             width={96}
             height={96}

@@ -23,15 +23,9 @@ function Register() {
   let date = formatDate();
   var { subMerchantId, merchantTranId, billNumber } = generateUniqueIds();
   const [guides, setGuides] = useState([]);
-
   const [error, setError] = useState("");
-  const [status, setStatus] = useState("");
-  // const paymentData = {
-  //   paymentDate,
-  //   paymentId,
-  //   paymentStatus,
-  //   paymentType,
-  // };
+  const [status, setStatus] = useState({ currentStatus: "", title: "" });
+  const [inProgress, setInprogress] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -87,7 +81,7 @@ function Register() {
     const storedEmail = localStorage.getItem("email");
 
     setFormData((prevData) => ({ ...prevData, amount: fetchedAmount }));
-    setRequestBody((prevData) => ({ ...prevData, amount: 1 })); //hereeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+    setRequestBody((prevData) => ({ ...prevData, amount: fetchedAmount }));
     setRequestBody((prevData) => ({
       ...prevData,
       note: `payment`,
@@ -118,43 +112,51 @@ function Register() {
     const courseID = courseDetails.id;
   
     try {
-      // 1. Check if the course is already purchased
       const userPaymentsRef = doc(db, "users", userDocID, "user_payments", courseID);
       const courseDoc = await getDoc(userPaymentsRef);
   
-      // If the course is already in user_payments, don't initiate payment
       if (courseDoc.exists()) {
-        setError("You have already purchased this course.");
-        return;
+        // If course is already purchased
+        const paymentStatus = courseDoc.data().paymentStatus;
+        if (paymentStatus === "Completed") {
+          setError("You have already purchased this course.");
+          return;
+        } else if (paymentStatus === "Pending") {
+          setError("Payment is already in progress. Please wait or cancel the current request.");
+          return;
+        }
       }
   
-      // 2. Define payment data for the Firestore write
-      const paymentData = {
-        paymentDate: new Date().toISOString(),
-        paymentStatus: "Pending", // Will update later on payment success
-        paymentType: "UPI",
-        // Add any other necessary fields here
-      };
+      // Set the payment status to "Pending" before making the payment
+      await runTransaction(db, async (transaction) => {
+        transaction.set(userPaymentsRef, {
+          paymentDate: new Date().toISOString(),
+          paymentStatus: "Pending",
+          paymentType: "UPI",
+          courseId: courseID,
+        });
+      });
   
-      // 3. Set request body for initiating payment
-      setStatus("Sending UPI payment request.");
+      setStatus({
+        title: "Processing your payment..",
+        currentStatus: "Sending UPI payment request.",
+      });
+  
       const BankRRN = await makePayment({ reqBodyData: requestBody });
       console.log("bank RRN", BankRRN);
   
       if (BankRRN) {
-        // After payment request is sent, check payment status
         checkPayment(BankRRN, setStatus, userDocID, courseID, formData);
       } else {
-        setStatus("");
+        setStatus({ currentStatus: "", title: "" });
         setError("UPI ID you've provided is invalid or try refreshing the page.");
       }
     } catch (error) {
       console.error("Error initiating payment:", error);
       setError("Something went wrong. Please try again.");
-      setStatus("");
+      setStatus({ currentStatus: "", title: "" });
     }
   };
-  
 
   return (
     <>
@@ -164,7 +166,11 @@ function Register() {
       >
         <ArrowLeft />
       </div>
-      {status ? <Processing status={status} /> : ""}
+      {status.currentStatus ? (
+        <Processing title={status.title} status={status.currentStatus} />
+      ) : (
+        ""
+      )}
       {error ? (
         <ErrorComponent
           message={error}
@@ -320,8 +326,9 @@ function Register() {
         <button
           type="submit"
           className="mt-5 bg-[#E5870D] text-white py-3 px-4 rounded-md hover:bg-[#d7790a] focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+          disabled={inProgress}
         >
-          Submit
+          {inProgress? "Processing..." : "Submit"}
         </button>
       </FormContainer>
     </>
