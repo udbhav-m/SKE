@@ -52,7 +52,7 @@ function Home() {
     const querySnapshot = await getDocs(collection(db, "events"));
     const allEvents = querySnapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((event) => event.active);
+      .filter((event) => event.active && event.payment_gateway);
 
     const registered = allEvents.filter((event) =>
       userCourses.includes(event.id)
