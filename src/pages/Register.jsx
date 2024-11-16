@@ -13,7 +13,7 @@ import {
 } from "../firebase/utils";
 import Processing from "../components/processing";
 import ErrorComponent from "../components/errorComp";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, runTransaction } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
 
 function Register() {
@@ -110,11 +110,17 @@ function Register() {
     e.preventDefault();
     const userDocID = localStorage.getItem("docId");
     const courseID = courseDetails.id;
-  
+
     try {
-      const userPaymentsRef = doc(db, "users", userDocID, "user_payments", courseID);
+      const userPaymentsRef = doc(
+        db,
+        "users",
+        userDocID,
+        "user_payments",
+        courseID
+      );
       const courseDoc = await getDoc(userPaymentsRef);
-  
+
       if (courseDoc.exists()) {
         // If course is already purchased
         const paymentStatus = courseDoc.data().paymentStatus;
@@ -122,11 +128,13 @@ function Register() {
           setError("You have already purchased this course.");
           return;
         } else if (paymentStatus === "Pending") {
-          setError("Payment is already in progress. Please wait or cancel the current request.");
+          setError(
+            "Payment is already in progress. Please wait or cancel the current request."
+          );
           return;
         }
       }
-  
+
       // Set the payment status to "Pending" before making the payment
       await runTransaction(db, async (transaction) => {
         transaction.set(userPaymentsRef, {
@@ -136,20 +144,25 @@ function Register() {
           courseId: courseID,
         });
       });
-  
+
       setStatus({
         title: "Processing your payment..",
         currentStatus: "Sending UPI payment request.",
       });
-  
+
       const BankRRN = await makePayment({ reqBodyData: requestBody });
       console.log("bank RRN", BankRRN);
-  
+
       if (BankRRN) {
-        checkPayment(BankRRN, setStatus, userDocID, courseID, formData);
+        checkPayment(BankRRN, setStatus, userDocID, courseID, formData, navigate);
       } else {
+        await runTransaction(db, async (transaction) => {
+          transaction.delete(userPaymentsRef); // Remove the "Pending" payment status document
+        });
         setStatus({ currentStatus: "", title: "" });
-        setError("UPI ID you've provided is invalid or try refreshing the page.");
+        setError(
+          "UPI ID you've provided is invalid or try refreshing the page."
+        );
       }
     } catch (error) {
       console.error("Error initiating payment:", error);
@@ -328,7 +341,7 @@ function Register() {
           className="mt-5 bg-[#E5870D] text-white py-3 px-4 rounded-md hover:bg-[#d7790a] focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
           disabled={inProgress}
         >
-          {inProgress? "Processing..." : "Submit"}
+          {inProgress ? "Processing..." : "Submit"}
         </button>
       </FormContainer>
     </>

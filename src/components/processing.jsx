@@ -13,9 +13,9 @@ export default function Processing({
         </h3>
         <div className="flex flex-col items-center space-y-4">
           {title == "Success" ? (
-            <img src="../../public/success.svg" alt="success" />
+            <img src="/success.svg" alt="success" />
           ) : title === "Failed" ? (
-            <img src="../../public/failed.svg" alt="failed" />
+            <img src="/failed.svg" alt="failed" />
           ) : (
             <Loader2 className="h-8 w-8 animate-spin text-black" />
           )}

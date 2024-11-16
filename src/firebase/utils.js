@@ -1,11 +1,10 @@
 import {
   runTransaction,
   doc,
-  getDoc,
-  setDoc,
+
   collection,
   getDocs,
-  updateDoc,
+
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 
@@ -64,7 +63,8 @@ export async function checkPayment(
   setStatus,
   userDocID,
   courseID,
-  formData
+  formData,
+  navigate
 ) {
   try {
     console.log(bankRRN, userDocID, courseID, formData);
@@ -112,6 +112,7 @@ export async function checkPayment(
       
       // Timeout to reset the status after showing the success message
       setTimeout(() => {
+        navigate("/home#registered-events")
         setStatus({ currentStatus: "", title: "" });
       }, 10000);
     } else if (response.data.status === "Failure") {
@@ -165,9 +166,6 @@ export async function checkPayment(
     setTimeout(() => {
       setStatus({ currentStatus: "", title: "" });
     }, 10000);
-    
-    // If there's an error in the process, we handle failed payment
-    await handleFailedPayment(userDocID, courseID, formData);
   }
 }
 
@@ -177,15 +175,21 @@ export async function handlePaymentTransaction(userDocID, courseID, formData) {
   const userDocRef = doc(db, "users", userDocID);
 
   await runTransaction(db, async (transaction) => {
+    // First, get all the necessary data before performing any writes
     const userPaymentDoc = await transaction.get(userPaymentsRef);
+    const userDoc = await transaction.get(userDocRef);
 
-    // Check if the course already exists in user_payments
-    if (userPaymentDoc.exists()) {
+    // Check if the course has already been purchased (payment status Completed)
+    if (userPaymentDoc.exists() && userPaymentDoc.data().paymentStatus === "Completed") {
       throw new Error("This course has already been purchased.");
     }
 
-    // Retrieve user document
-    const userDoc = await transaction.get(userDocRef);
+    // If the course was previously in "Pending" status, reset the status
+    if (userPaymentDoc.exists() && userPaymentDoc.data().paymentStatus === "Pending") {
+      transaction.update(userPaymentsRef, { paymentStatus: "Pending" }); // Reset to Pending
+    }
+
+    // After all reads, perform writes
     const emailphone = localStorage.getItem("emailphone");
     const name = localStorage.getItem("name");
 
@@ -200,6 +204,7 @@ export async function handlePaymentTransaction(userDocID, courseID, formData) {
       name: name, // Add name from localStorage
     });
 
+    // Handle courses update in the user document
     if (userDoc.exists()) {
       const courses = userDoc.data()?.courses ? userDoc.data().courses : [];
       if (!courses.includes(courseID)) {
@@ -214,6 +219,8 @@ export async function handlePaymentTransaction(userDocID, courseID, formData) {
     throw error;
   });
 }
+
+
 
 export async function handleFailedPayment(userDocID, courseID) {
   const userPaymentsRef = doc(

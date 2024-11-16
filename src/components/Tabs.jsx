@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import TabButton from "./TabButton";
 import Course from "./Course";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 // Format utility function
 const formatDateTime = (timestamp) => {
@@ -22,6 +22,18 @@ function Tabs({ types, registeredCourses, unregisteredCourses, userPayments }) {
   const [isActive, setIsActive] = useState(0);
   const [unReg, setUnReg] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation(); // Get the current location
+
+  useEffect(() => {
+    // Listen for changes in the URL hash and activate the correct tab
+    if (location.hash === "#registered-events") {
+      setIsActive(1);
+      setUnReg(false); // Show registered courses
+    } else {
+      setIsActive(0);
+      setUnReg(true); // Show unregistered courses
+    }
+  }, [location]);
 
   function handleOnPay(course) {
     navigate(`/register/${course?.id}`, {

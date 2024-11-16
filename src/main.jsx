@@ -22,6 +22,10 @@ const router = createBrowserRouter([
         element: <Home />,
       },
       {
+        path: "/home#unregistered-events",
+        element: <Home />,
+      },
+      {
         path: "/search",
         element: <Search />,
       },
