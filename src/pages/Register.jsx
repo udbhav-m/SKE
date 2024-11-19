@@ -106,10 +106,85 @@ function Register() {
     }
   }, [courseDetails]);
 
+  function validateAadhaarOrPAN(input) {
+    const aadhaarRegex = /^\d{12}$/; // 12-digit numeric Aadhaar number
+    const panRegex = /^[A-Z]{5}\d{4}[A-Z]$/; // PAN format: ABCDE1234F
+  
+    if (aadhaarRegex.test(input)) {
+      return { valid: true, type: "Aadhaar" };
+    } else if (panRegex.test(input)) {
+      return { valid: true, type: "PAN" };
+    } else {
+      return { valid: false, type: "Invalid", message: "Invalid Aadhaar or PAN format" };
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const userDocID = localStorage.getItem("docId");
     const courseID = courseDetails.id;
+
+    const {
+      name,
+      dasajiName,
+      address,
+      cityOrDist,
+      state,
+      country,
+      pincode,
+      aadharOrPan,
+      gothram,
+      sankalpam,
+      email,
+      phone,
+      upiId,
+    } = formData;
+
+    // Validation logic
+    if (!name) {
+      setError("Name is required.");
+      return;
+    }
+
+    if (!email && !phone) {
+      setError(" Email and Phone must be provided.");
+      return;
+    }
+    const phoneRegex = /^[6-9]\d{9}$/;
+
+    if (localStorage.getItem("email") && (!phone || !phoneRegex.test(phone))) {
+      setError("Phone is mandatory");
+      return;
+    }
+
+    if (localStorage.getItem("phone") && !email) {
+      setError("Email is mandatory .");
+      return;
+    }
+    const data = validateAadhaarOrPAN(formData.aadharOrPan)
+    if(!data?.valid){
+      setError(data?.message);
+    }
+
+    const requiredFields = {
+      dasajiName,
+      address,
+      cityOrDist,
+      state,
+      country,
+      pincode,
+      aadharOrPan,
+      gothram,
+      sankalpam,
+      upiId,
+    };
+
+    for (const [key, value] of Object.entries(requiredFields)) {
+      if (!value) {
+        setError(`${key.charAt(0).toUpperCase() + key.slice(1)} is required.`);
+        return;
+      }
+    }
 
     try {
       const userPaymentsRef = doc(
@@ -124,7 +199,7 @@ function Register() {
       if (courseDoc.exists()) {
         // If course is already purchased
         const paymentStatus = courseDoc.data().paymentStatus;
-        if (paymentStatus === "Completed") {
+        if (paymentStatus === "Approved") {
           setError("You have already purchased this course.");
           return;
         } else if (paymentStatus === "Pending") {
@@ -154,7 +229,14 @@ function Register() {
       console.log("bank RRN", BankRRN);
 
       if (BankRRN) {
-        checkPayment(BankRRN, setStatus, userDocID, courseID, formData, navigate);
+        checkPayment(
+          BankRRN,
+          setStatus,
+          userDocID,
+          courseID,
+          formData,
+          navigate
+        );
       } else {
         await runTransaction(db, async (transaction) => {
           transaction.delete(userPaymentsRef); // Remove the "Pending" payment status document
@@ -247,12 +329,35 @@ function Register() {
           />
 
           {/* Country */}
-          <InputField
+          <SelectField
             label="Country"
             value={formData.country}
             onChange={(e) =>
               setFormData({ ...formData, country: e.target.value })
             }
+            options={[
+              "India",
+              "United States",
+              "Canada",
+              "Australia",
+              "United Kingdom",
+              "Germany",
+              "France",
+              "Japan",
+              "Brazil",
+              "South Africa",
+              "China",
+              "Russia",
+              "Italy",
+              "Spain",
+              "Mexico",
+              "New Zealand",
+              "South Korea",
+              "Saudi Arabia",
+              "Netherlands",
+              "Singapore",
+              "others"
+            ]}
           />
 
           {/* Pincode */}

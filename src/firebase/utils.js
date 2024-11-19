@@ -180,7 +180,7 @@ export async function handlePaymentTransaction(userDocID, courseID, formData) {
     const userDoc = await transaction.get(userDocRef);
 
     // Check if the course has already been purchased (payment status Completed)
-    if (userPaymentDoc.exists() && userPaymentDoc.data().paymentStatus === "Completed") {
+    if (userPaymentDoc.exists() && userPaymentDoc.data().paymentStatus === "Approved") {
       throw new Error("This course has already been purchased.");
     }
 
@@ -196,7 +196,7 @@ export async function handlePaymentTransaction(userDocID, courseID, formData) {
     // Set payment data in Firestore
     transaction.set(userPaymentsRef, {
       paymentDate: new Date().toISOString(),
-      paymentStatus: "Completed", // Payment status
+      paymentStatus: "Approved", // Payment status
       paymentType: "UPI", // Payment type
       courseId: courseID, // Add the courseId
       emailphone: emailphone, // Add email or phone
