@@ -198,6 +198,8 @@ function Register() {
       }
     }
 
+    if(error) return;
+    
     try {
       const userPaymentsRef = doc(
         db,
