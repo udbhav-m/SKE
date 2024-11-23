@@ -10,11 +10,11 @@ import {
   formatDate,
   generateUniqueIds,
   makePayment,
-} from "../firebase/utils";
+} from "../utils/utils";
 import Processing from "../components/processing";
 import ErrorComponent from "../components/errorComp";
 import { doc, getDoc, runTransaction } from "firebase/firestore";
-import { db } from "../firebase/firebaseConfig";
+import { db } from "../utils/firebaseConfig";
 
 function Register() {
   const location = useLocation();
@@ -109,18 +109,23 @@ function Register() {
   function validateAadhaarOrPAN(input) {
     const aadhaarRegex = /^\d{12}$/; // 12-digit numeric Aadhaar number
     const panRegex = /^[A-Z]{5}\d{4}[A-Z]$/; // PAN format: ABCDE1234F
-  
+
     if (aadhaarRegex.test(input)) {
       return { valid: true, type: "Aadhaar" };
     } else if (panRegex.test(input)) {
       return { valid: true, type: "PAN" };
     } else {
-      return { valid: false, type: "Invalid", message: "Invalid Aadhaar or PAN format" };
+      return {
+        valid: false,
+        type: "Invalid",
+        message: "Invalid Aadhaar or PAN format",
+      };
     }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setInprogress(true);
     const userDocID = localStorage.getItem("docId");
     const courseID = courseDetails.id;
 
@@ -143,27 +148,33 @@ function Register() {
     // Validation logic
     if (!name) {
       setError("Name is required.");
+      setInprogress(false);
       return;
     }
 
     if (!email && !phone) {
       setError(" Email and Phone must be provided.");
+      setInprogress(false);
       return;
     }
     const phoneRegex = /^[6-9]\d{9}$/;
 
     if (localStorage.getItem("email") && (!phone || !phoneRegex.test(phone))) {
       setError("Phone is mandatory");
+      setInprogress(false);
       return;
     }
 
     if (localStorage.getItem("phone") && !email) {
       setError("Email is mandatory .");
+      setInprogress(false);
       return;
     }
-    const data = validateAadhaarOrPAN(formData.aadharOrPan)
-    if(!data?.valid){
+    const data = validateAadhaarOrPAN(formData.aadharOrPan);
+    if (!data?.valid) {
       setError(data?.message);
+      setInprogress(false);
+      return;
     }
 
     const requiredFields = {
@@ -182,6 +193,7 @@ function Register() {
     for (const [key, value] of Object.entries(requiredFields)) {
       if (!value) {
         setError(`${key.charAt(0).toUpperCase() + key.slice(1)} is required.`);
+        setInprogress(false);
         return;
       }
     }
@@ -201,11 +213,13 @@ function Register() {
         const paymentStatus = courseDoc.data().paymentStatus;
         if (paymentStatus === "Approved") {
           setError("You have already purchased this course.");
+          setInprogress(false);
           return;
         } else if (paymentStatus === "Pending") {
           setError(
             "Payment is already in progress. Please wait or cancel the current request."
           );
+          setInprogress(false);
           return;
         }
       }
@@ -245,9 +259,11 @@ function Register() {
         setError(
           "UPI ID you've provided is invalid or try refreshing the page."
         );
+        setInprogress(false);
       }
     } catch (error) {
       console.error("Error initiating payment:", error);
+      setInprogress(false);
       setError("Something went wrong. Please try again.");
       setStatus({ currentStatus: "", title: "" });
     }
@@ -356,7 +372,7 @@ function Register() {
               "Saudi Arabia",
               "Netherlands",
               "Singapore",
-              "others"
+              "others",
             ]}
           />
 
