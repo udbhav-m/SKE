@@ -1,4 +1,6 @@
+/* eslint-disable react/prop-types */
 // FormContainer.js
+import React from "react";
 const FormContainer = ({ children, onSubmit }) => {
   return (
     <div className="flex justify-center select-none">

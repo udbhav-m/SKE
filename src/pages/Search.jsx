@@ -1,7 +1,9 @@
+/* eslint-disable no-useless-escape */
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
-import { db } from "../firebase/firebaseConfig";
+import { db } from "../utils/firebaseConfig";
 
 function Search() {
   const navigate = useNavigate();

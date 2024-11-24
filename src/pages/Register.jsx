@@ -1,3 +1,4 @@
+import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
@@ -10,22 +11,31 @@ import {
   formatDate,
   generateUniqueIds,
   makePayment,
-} from "../utils/utils";
+} from "../utils/payment-utils";
 import Processing from "../components/processing";
 import ErrorComponent from "../components/errorComp";
 import { doc, getDoc, runTransaction } from "firebase/firestore";
 import { db } from "../utils/firebaseConfig";
+import {
+  checkPhoneEmail,
+  countriesList,
+  isFieldInvalid,
+  setPhoneMailName,
+} from "../utils/utils";
 
 function Register() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { courseDetails } = location.state;
   let date = formatDate();
-  var { subMerchantId, merchantTranId, billNumber } = generateUniqueIds();
+  var ids = generateUniqueIds();
+  const countries = countriesList;
+  const { courseDetails } = location.state;
+
   const [guides, setGuides] = useState([]);
   const [error, setError] = useState("");
   const [status, setStatus] = useState({ currentStatus: "", title: "" });
   const [inProgress, setInprogress] = useState(false);
+  const [invalidFields, setInvalidFields] = useState({});
 
   const [formData, setFormData] = useState({
     name: "",
@@ -35,13 +45,14 @@ function Register() {
     state: "",
     country: "India",
     pincode: "",
-    aadharOrPan: "",
+    aadhar: "",
     gothram: "",
     sankalpam: "",
     email: "",
     phone: "",
     upiId: "",
-    amount: "",
+    // pan: "",
+    amount: courseDetails.amount,
   });
 
   const [requestBody, setRequestBody] = useState({
@@ -49,164 +60,66 @@ function Register() {
     amount: "",
     note: "",
     collectByDate: date,
-    subMerchantId: subMerchantId,
+    subMerchantId: ids.subMerchantId,
     subMerchantName: "Sri Kalki Events",
-    merchantTranId: merchantTranId,
-    billNumber: billNumber,
+    merchantTranId: ids.merchantTranId,
+    billNumber: ids.billNumber,
   });
 
   const [isPhoneEditable, setIsPhoneEditable] = useState(true);
   const [isEmailEditable, setIsEmailEditable] = useState(true);
 
-  useEffect(() => {
-    let data = generateUniqueIds();
-    subMerchantId = data.subMerchantId;
-    merchantTranId = data.merchantTranId;
-    billNumber = data.billNumber;
-  }, [error]);
-
-  useEffect(() => {
-    async function loadGuides() {
-      const guideNames = await fetchGuideNames();
-      setGuides(guideNames);
-    }
-    loadGuides();
-  }, []);
-
-  useEffect(() => {
-    console.log(courseDetails);
-    const fetchedAmount = courseDetails.inr_amount;
-    const storedName = localStorage.getItem("name");
-    const storedPhone = localStorage.getItem("phone");
-    const storedEmail = localStorage.getItem("email");
-
-    setFormData((prevData) => ({ ...prevData, amount: fetchedAmount }));
-    setRequestBody((prevData) => ({ ...prevData, amount: fetchedAmount }));
-    setRequestBody((prevData) => ({
-      ...prevData,
-      note: `payment`,
-    }));
-
-    if (storedPhone) {
-      setFormData((prevData) => ({
-        ...prevData,
-        name: storedName,
-        phone: storedPhone,
-      }));
-      setIsPhoneEditable(false);
-      setIsEmailEditable(true);
-    } else if (storedEmail) {
-      setFormData((prevData) => ({
-        ...prevData,
-        name: storedName,
-        email: storedEmail,
-      }));
-      setIsPhoneEditable(true);
-      setIsEmailEditable(false);
-    }
-  }, [courseDetails]);
-
-  function validateAadhaarOrPAN(input) {
-    const aadhaarRegex = /^\d{12}$/; // 12-digit numeric Aadhaar number
-    const panRegex = /^[A-Z]{5}\d{4}[A-Z]$/; // PAN format: ABCDE1234F
-
-    if (aadhaarRegex.test(input)) {
-      return { valid: true, type: "Aadhaar" };
-    } else if (panRegex.test(input)) {
-      return { valid: true, type: "PAN" };
-    } else {
-      return {
-        valid: false,
-        type: "Invalid",
-        message: "Invalid Aadhaar or PAN format",
-      };
-    }
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setInprogress(true);
+    ids = generateUniqueIds();
+    date = formatDate()
+    setRequestBody((prevData) => ({
+      ...prevData,
+      collectByDate: date,
+      subMerchantId: ids.subMerchantId,
+      merchantTranId: ids.merchantTranId,
+      billNumber: ids.billNumber,
+    }));
     const userDocID = localStorage.getItem("docId");
-    const courseID = courseDetails.id;
+    // const courseID = ;
 
-    const {
-      name,
-      dasajiName,
-      address,
-      cityOrDist,
-      state,
-      country,
-      pincode,
-      aadharOrPan,
-      gothram,
-      sankalpam,
-      email,
-      phone,
-      upiId,
-    } = formData;
+    checkPhoneEmail(formData, setError, setInprogress);
 
-    // Validation logic
-    if (!name) {
-      setError("Name is required.");
-      setInprogress(false);
-      return;
-    }
+    const newInvalidFields = {};
 
-    if (!email && !phone) {
-      setError(" Email and Phone must be provided.");
-      setInprogress(false);
-      return;
-    }
-    const phoneRegex = /^[6-9]\d{9}$/;
-
-    if (localStorage.getItem("email") && (!phone || !phoneRegex.test(phone))) {
-      setError("Phone is mandatory");
-      setInprogress(false);
-      return;
-    }
-
-    if (localStorage.getItem("phone") && !email) {
-      setError("Email is mandatory .");
-      setInprogress(false);
-      return;
-    }
-    const data = validateAadhaarOrPAN(formData.aadharOrPan);
-    if (!data?.valid) {
-      setError(data?.message);
-      setInprogress(false);
-      return;
-    }
-
-    const requiredFields = {
-      dasajiName,
-      address,
-      cityOrDist,
-      state,
-      country,
-      pincode,
-      aadharOrPan,
-      gothram,
-      sankalpam,
-      upiId,
-    };
-
-    for (const [key, value] of Object.entries(requiredFields)) {
-      if (!value) {
-        setError(`${key.charAt(0).toUpperCase() + key.slice(1)} is required.`);
-        setInprogress(false);
-        return;
+    // Validate all fields
+    Object.keys(formData).forEach((field) => {
+      const isInvalid = isFieldInvalid(field, formData[field]);
+      if (field === "pan") {
+        if (formData.amount >= 50000 && isInvalid) {
+          newInvalidFields[field] = true; // PAN is mandatory for amounts >= 50000
+        } else if (formData.amount < 50000) {
+          // If amount is less than 50000, PAN is not mandatory, mark it as valid
+          delete newInvalidFields[field];
+        }
+      } else if (isInvalid) {
+        newInvalidFields[field] = true;
       }
+    });
+
+    setInvalidFields(newInvalidFields);
+
+    // If any field is invalid, prevent submission
+    if (Object.values(newInvalidFields).some((value) => value)) {
+      return;
     }
 
-    if(error) return;
-    
+    setInprogress(true);
+
+    if (error) return;
+
     try {
       const userPaymentsRef = doc(
         db,
         "users",
         userDocID,
         "user_payments",
-        courseID
+        courseDetails.id
       );
       const courseDoc = await getDoc(userPaymentsRef);
 
@@ -232,7 +145,8 @@ function Register() {
           paymentDate: new Date().toISOString(),
           paymentStatus: "Pending",
           paymentType: "UPI",
-          courseId: courseID,
+          courseId: courseDetails.id,
+          courseName: courseDetails.name,
         });
       });
 
@@ -249,10 +163,11 @@ function Register() {
           BankRRN,
           setStatus,
           userDocID,
-          courseID,
+          courseDetails,
           formData,
           navigate
         );
+        setInprogress(false);
       } else {
         await runTransaction(db, async (transaction) => {
           transaction.delete(userPaymentsRef); // Remove the "Pending" payment status document
@@ -270,6 +185,39 @@ function Register() {
       setStatus({ currentStatus: "", title: "" });
     }
   };
+
+  const handleOnChange = (field, value) => {
+    const isInvalid = isFieldInvalid(field, value);
+
+    setInvalidFields((previousInvalidFields) => ({
+      ...previousInvalidFields,
+      [field]: isInvalid,
+    }));
+
+    setFormData((prevData) => ({
+      ...prevData,
+      [field]: value,
+    }));
+  };
+
+  useEffect(() => {
+    console.log(courseDetails);
+    const fetchedAmount = courseDetails.inr_amount;
+    setFormData((prevData) => ({ ...prevData, amount: fetchedAmount }));
+    setRequestBody((prevData) => ({ ...prevData, amount: fetchedAmount }));
+    setRequestBody((prevData) => ({
+      ...prevData,
+      note: `payment`,
+    }));
+
+    setPhoneMailName(setFormData, setIsPhoneEditable, setIsEmailEditable);
+
+    async function loadGuides() {
+      const guideNames = await fetchGuideNames();
+      setGuides(guideNames);
+    }
+    loadGuides();
+  }, [courseDetails]);
 
   return (
     <>
@@ -299,13 +247,12 @@ function Register() {
           {"Registering for " + courseDetails?.name}
         </h1>
 
-        {/* Responsive Two-Column Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Name (from localStorage, uneditable) */}
           <InputField
             label="Name"
             value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            onChange={(e) => handleOnChange("name", e.target.value)}
             disabled
           />
 
@@ -313,125 +260,92 @@ function Register() {
           <SelectField
             label="Dasa Name"
             value={formData.dasajiName}
-            onChange={(e) =>
-              setFormData({ ...formData, dasajiName: e.target.value })
-            }
+            onChange={(e) => handleOnChange("dasajiName", e.target.value)}
             options={guides}
+            hasError={invalidFields.dasajiName}
           />
 
           {/* Address */}
           <InputField
             label="Address"
             value={formData.address}
-            onChange={(e) =>
-              setFormData({ ...formData, address: e.target.value })
-            }
+            onChange={(e) => handleOnChange("address", e.target.value)}
+            hasError={invalidFields.address}
           />
 
           {/* City */}
           <InputField
             label="City"
             value={formData.cityOrDist}
-            onChange={(e) =>
-              setFormData({ ...formData, cityOrDist: e.target.value })
-            }
+            onChange={(e) => handleOnChange("cityOrDist", e.target.value)}
+            hasError={invalidFields.cityOrDist}
           />
 
           {/* State */}
           <InputField
             label="State"
             value={formData.state}
-            onChange={(e) =>
-              setFormData({ ...formData, state: e.target.value })
-            }
+            onChange={(e) => handleOnChange("state", e.target.value)}
+            hasError={invalidFields.state}
           />
 
           {/* Country */}
           <SelectField
             label="Country"
             value={formData.country}
-            onChange={(e) =>
-              setFormData({ ...formData, country: e.target.value })
-            }
-            options={[
-              "India",
-              "United States",
-              "Canada",
-              "Australia",
-              "United Kingdom",
-              "Germany",
-              "France",
-              "Japan",
-              "Brazil",
-              "South Africa",
-              "China",
-              "Russia",
-              "Italy",
-              "Spain",
-              "Mexico",
-              "New Zealand",
-              "South Korea",
-              "Saudi Arabia",
-              "Netherlands",
-              "Singapore",
-              "others",
-            ]}
+            onChange={(e) => handleOnChange("country", e.target.value)}
+            options={countries}
+            hasError={invalidFields.country}
           />
 
           {/* Pincode */}
           <InputField
             label="Pincode"
             value={formData.pincode}
-            onChange={(e) =>
-              setFormData({ ...formData, pincode: e.target.value })
-            }
+            onChange={(e) => handleOnChange("pincode", e.target.value)}
+            hasError={invalidFields.pincode}
           />
 
-          {/* Adhaar/PAN */}
+          {/* Aadhar */}
           <InputField
-            label="Adhaar/PAN No."
-            value={formData.aadharOrPan}
-            onChange={(e) =>
-              setFormData({ ...formData, aadharOrPan: e.target.value })
-            }
+            label="Aadhar"
+            value={formData.aadhar}
+            onChange={(e) => handleOnChange("aadhar", e.target.value)}
+            hasError={invalidFields.aadhar}
           />
 
           {/* Gothram */}
           <InputField
             label="Gothram"
             value={formData.gothram}
-            onChange={(e) =>
-              setFormData({ ...formData, gothram: e.target.value })
-            }
+            onChange={(e) => handleOnChange("gothram", e.target.value)}
+            hasError={invalidFields.gothram}
           />
 
           {/* Sankalpam */}
           <InputField
             label="Sankalpam"
             value={formData.sankalpam}
-            onChange={(e) =>
-              setFormData({ ...formData, sankalpam: e.target.value })
-            }
+            onChange={(e) => handleOnChange("sankalpam", e.target.value)}
+            hasError={invalidFields.sankalpam}
           />
 
           {/* Email */}
           <InputField
             label="Email"
             value={formData.email}
-            onChange={(e) =>
-              setFormData({ ...formData, email: e.target.value })
-            }
+            onChange={(e) => handleOnChange("email", e.target.value)}
             disabled={!isEmailEditable}
+            hasError={invalidFields.email}
           />
 
           {/* Phone */}
           <InputField
             label="Phone"
             value={formData.phone}
-            onChange={(e) =>
-              setFormData({ ...formData, phone: e.target.value })
-            }
+            onChange={(e) => handleOnChange("phone", e.target.value)}
             disabled={!isPhoneEditable}
+            hasError={invalidFields.phone}
           />
 
           {/* UPI ID */}
@@ -439,10 +353,25 @@ function Register() {
             label="UPI ID"
             value={formData.upiId}
             onChange={(e) => {
-              setFormData({ ...formData, upiId: e.target.value });
+              handleOnChange("upiId", e.target.value);
               setRequestBody({ ...requestBody, payerVa: e.target.value });
             }}
+            hasError={invalidFields.upiId}
           />
+          {/* Pan */}
+          {formData.amount >= 50000 ? (
+            <InputField
+              label="PAN number"
+              value={formData.pan}
+              onChange={(e) => {
+                handleOnChange("pan", e.target.value);
+                setRequestBody({ ...requestBody, payerVa: e.target.value });
+              }}
+              hasError={invalidFields.upiId}
+            />
+          ) : (
+            ""
+          )}
         </div>
 
         {/* Amount */}

@@ -1,3 +1,5 @@
+/* eslint-disable react/prop-types */
+import React from "react";
 function Input({ label, type, placeholder, onChange }) {
   return (
     <>

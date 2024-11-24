@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react"; // Assuming you're using lucide-react for the icons
+import React from "react";
 
 export default function Header() {
   const navigate = useNavigate();

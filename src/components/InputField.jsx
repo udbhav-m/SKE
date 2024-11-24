@@ -4,6 +4,7 @@ const InputField = ({
   type = "text",
   placeholder,
   value,
+  hasError,
   onChange,
   disabled = false,
 }) => {
@@ -13,7 +14,9 @@ const InputField = ({
       <input
         type={type}
         placeholder={placeholder}
-        className="mt-1 p-3 w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+        className={`mt-1 p-3 w-full rounded-md border shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50  ${
+          hasError ? "border-red-500 focus:ring-red-500" : "border-gray-300 focus:ring-indigo-200"
+        }`}
         value={value}
         onChange={onChange}
         disabled={disabled}

@@ -1,7 +1,8 @@
+import React from "react";
 import { useEffect, useState } from "react";
 import Tabs from "../components/Tabs";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase/firebaseConfig";
+import { db } from "../utils/firebaseConfig";
 import Loader from "../components/loader";
 
 function Home() {

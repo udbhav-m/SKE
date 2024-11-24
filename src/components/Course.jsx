@@ -1,5 +1,6 @@
+/* eslint-disable react/prop-types */
 import HButton from "./HButton";
-
+import React from "react";
 function Course({ image, name, description, date, label, onClick }) {
   return (
     <div className=" md:w-5/12 lg:w-96 lg:max-w-[26rem] shadow-2xl rounded-md items-center hover:bg-primary hover:bg-opacity-10 transition-all duration-200 transform hover:scale-95">
