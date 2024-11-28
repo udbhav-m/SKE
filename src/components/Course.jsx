@@ -10,9 +10,11 @@ function Course({ image, name, description, date, label, onClick }) {
           <b>{name}</b>
         </h1>
         <h1>{date}</h1>
-        <h1>{description}</h1>
+        <h1 className="text-xs text-gray-600">{description}</h1>
       </div>
-      <div className="p-2">
+      <div className={` p-2 ${
+          label === "Pending" ? "cursor-not-allowed" : ""
+        }`}>
         <HButton onClick={onClick} label={label} />
       </div>
     </div>

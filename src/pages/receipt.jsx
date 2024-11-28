@@ -32,7 +32,7 @@ const Receipt = () => {
   };
 
   useEffect(() => {
-    if (receiptData) {
+    if (receiptData.receiptNumber) {
       const generateAndPushPDFBlob = async () => {
         try {
           // Step 1: Create a new jsPDF instance with A4 page size (595x842)
@@ -222,12 +222,12 @@ const Receipt = () => {
             <tbody>
               <tr className="border-b border-gray-200 text-sm">
                 <td className="py-2">
-                  {receiptData?.receiptNumber || "No receipt found"}
+                  {receiptData?.receiptNumber || ""}
                 </td>
-                <td>{receiptData?.paymentDate || "No payment date found"}</td>
-                <td>{receiptData?.name || "No name found"}</td>
-                <td>{receiptData?.courseName || "No course found"}</td>
-                <td>{receiptData?.amount || "No amount found"}.00</td>
+                <td>{receiptData?.paymentDate || ""}</td>
+                <td>{receiptData?.name || ""}</td>
+                <td>{receiptData?.courseName || ""}</td>
+                <td> ₹ {receiptData?.amount || ""}.00</td>
               </tr>
             </tbody>
           </table>
@@ -236,13 +236,12 @@ const Receipt = () => {
         {/* Total */}
         <div className="flex justify-between mb-8 pb-4 border-b border-gray-200">
           <span className="text-gray-700 font-semibold text-sm">
-            {receiptData?.amountInWords?.toUpperCase() + " RUPEES" ||
-              "No Amount found"}
+            {receiptData?.amountInWords?.toUpperCase()  + " RUPEES" || "" }
           </span>
           <div>
             <span className="font-medium">Total:</span>
             <span className="ml-4">
-              Rs. {receiptData?.amount || "No amount found"}.00
+            ₹ {receiptData?.amount || ""}.00
             </span>
           </div>
         </div>
@@ -253,25 +252,25 @@ const Receipt = () => {
           <div className="grid grid-cols-1 gap-4">
             <div className="pb-4 border-b border-gray-200">
               <h3 className="text-sm text-gray-600 mb-1">Address</h3>
-              <p>{receiptData?.address || "No address found "}</p>
+              <p>{receiptData?.address || " "}</p>
             </div>
 
-            <div className="grid grid-cols-4 gap-4 pb-4 border-b border-gray-200">
+            <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-200">
               <div>
                 <h3 className="text-sm text-gray-600 mb-1">PAN No</h3>
-                <p>{receiptData?.pan || "No PAN found"}</p>
-              </div>
-              <div>
-                <h3 className="text-sm text-gray-600 mb-1">Aadhar No</h3>
-                <p>{receiptData?.aadhar || "No aadhar found"}</p>
+                <p>{receiptData?.pan || ""}</p>
               </div>
               <div className="border-l border-gray-200 pl-4">
+                <h3 className="text-sm text-gray-600 mb-1 ">Aadhar No</h3>
+                <p>{receiptData?.aadhar || ""}</p>
+              </div>
+              <div className="">
                 <h3 className="text-sm text-gray-600 mb-1">Phone No</h3>
-                <p>{receiptData?.phone || "No number found"}</p>
+                <p>{receiptData?.phone || ""}</p>
               </div>
               <div className="border-l border-gray-200 pl-4">
                 <h3 className="text-sm text-gray-600 mb-1">Email ID</h3>
-                <p>{receiptData?.email || "No email found"}</p>
+                <p>{receiptData?.email || ""}</p>
               </div>
             </div>
           </div>
@@ -282,7 +281,7 @@ const Receipt = () => {
           <div className="flex items-center">
             <img src="/success.svg" alt="Success" className="h-6 w-6 mr-2" />
             <span>
-              Donated by
+              Received with thanks from
               <br />
               {receiptData?.name || ""}
             </span>
@@ -292,7 +291,7 @@ const Receipt = () => {
               UPI Transaction Reference On.
             </span>
             <br />
-            <span>{receiptData?.receiptNumber || "No ref number found"}</span>
+            <span>{receiptData?.receiptNumber || ""}</span>
           </div>
         </div>
 
@@ -316,9 +315,8 @@ const Receipt = () => {
         <div className="text-xs text-gray-600 space-y-1">
           <h3 className="font-medium">Terms And Conditions</h3>
           <p>
-            We Declare That The Amount Charged Is For The Services Provided Or
-            To Be Provided As Mentioned In The Invoice & Contents in The Invoice
-            Are True & Correct.
+          We Declare That The Amount Charged Is For The Services Provided Or To Be Provided As Mentioned In The Receipt
+          & Contents in The Receipt Are True & Correct.
           </p>
           <p>
             Services Rendered Above Are Exempted from GST Vide Notification No

@@ -13,6 +13,7 @@ function Home() {
   const [unRegisteredEvents, setUnRegisteredEvents] = useState([]);
   const [registeredEvents, setRegisteredEvents] = useState([]);
   const [userCourses, setCourses] = useState([]); // State to hold user courses
+  const [pendingCourses, setPendingCourses] = useState([]); // State to hold pending courses
   const [userPayments, setUserPayments] = useState([]); // State to hold user payments
   const [isUserLoaded, setIsUserLoaded] = useState(false); // New state to track user loading
 
@@ -25,6 +26,7 @@ function Home() {
       if (data.phone === "+91" + phone || data.email === email) {
         localStorage.setItem("name", data.name);
         setCourses(data.courses || []); // Set user courses
+        setPendingCourses(data.pending || []); // Set pending courses
         await getUserPayments(); // Fetch payments after setting courses
       }
     }
@@ -36,7 +38,6 @@ function Home() {
     const paymentDocs = await getDocs(paymentsCollection);
     const payments = paymentDocs.docs.map((doc) => {
       const data = doc.data();
-      // Check for timestamp fields and convert them
       return {
         id: doc.id,
         ...data,
@@ -53,7 +54,10 @@ function Home() {
     const querySnapshot = await getDocs(collection(db, "events"));
     const allEvents = querySnapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((event) => event.active && event.payment_gateway);
+      .filter(
+        (event) =>
+          event.active && event.payment_gateway_website
+      );
 
     const registered = allEvents.filter((event) =>
       userCourses.includes(event.id)
@@ -67,24 +71,15 @@ function Home() {
     setUnRegisteredEvents(unregistered);
   }
 
-  // Fetch user data only once
   useEffect(() => {
     getUser();
   }, []);
 
-  // Fetch courses once userCourses is updated
-  useEffect(() => {
-    if (userCourses.length > 0) {
-      getAllCourses();
-    }
-  }, [userCourses]); // Only trigger when userCourses is updated
-
-  // Fetch courses after user data is loaded
   useEffect(() => {
     if (isUserLoaded) {
       getAllCourses();
     }
-  }, [isUserLoaded]); // Fetch courses once the user data is loaded
+  }, [isUserLoaded]);
 
   if (!isUserLoaded) {
     return <Loader />;
@@ -96,6 +91,7 @@ function Home() {
         types={types}
         registeredCourses={registeredEvents}
         unregisteredCourses={unRegisteredEvents}
+        pendingCourses={pendingCourses} // Pass pending courses as prop
         userPayments={userPayments}
       />
     </div>

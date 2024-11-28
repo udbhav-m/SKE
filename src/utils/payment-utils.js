@@ -1,4 +1,11 @@
-import { runTransaction, doc, collection, getDocs } from "firebase/firestore";
+import {
+  runTransaction,
+  doc,
+  collection,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 import { db } from "./firebaseConfig";
 import n2words from "n2words";
 import axios from "axios";
@@ -6,6 +13,7 @@ import { format } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import { getCurrentTimestamp } from "./utils";
 
+// Fetch guide names from the Firestore collection
 export async function fetchGuideNames() {
   try {
     const guidesRef = collection(db, "guides");
@@ -23,6 +31,7 @@ export async function fetchGuideNames() {
   }
 }
 
+// Make payment via the provided API
 export async function makePayment({ reqBodyData }) {
   try {
     const response = await axios.post(
@@ -48,23 +57,37 @@ export async function makePayment({ reqBodyData }) {
   }
 }
 
+// Check payment status with retries
 export async function checkPayment(
   bankRRN,
   setStatus,
+  setError,
   userDocID,
   courseDetails,
   formData,
-  navigate
+  navigate,
+  userPaymentsRef
 ) {
   let attempt = 0;
   const maxAttempts = 30;
   const retryDelay = 3000; // 3 seconds delay
+  let rrnSaved = false;
 
   try {
     while (attempt < maxAttempts) {
       const response = await axios.post(
         `${import.meta.env.VITE_LISTENPAY_API}${bankRRN}`
       );
+      if (!rrnSaved) {
+        await runTransaction(db, async (transaction) => {
+          transaction.update(userPaymentsRef, {
+            bankRRN: bankRRN, // Store the BankRRN
+            paymentDate: new Date().toISOString(),
+            updatedDate: new Date().toISOString(),
+          });
+        });
+        rrnSaved = true;
+      }
 
       if (response.data.status === "Success") {
         setStatus({ currentStatus: "Almost there..", title: "Success" });
@@ -84,12 +107,8 @@ export async function checkPayment(
           currentStatus: "Payment declined. Please try again.",
           title: "Failed",
         });
-        await new Promise((resolve) => setTimeout(resolve, 5000));
-        await handleFailedPayment(userDocID, courseDetails.id, formData);
-        setStatus({
-          currentStatus: "",
-          title: "",
-        });
+        await handleFailedPayment(userDocID, courseDetails.id);
+        setStatus({ currentStatus: "", title: "" });
         return false; // Exit loop on failure
       }
 
@@ -119,15 +138,22 @@ export async function checkPayment(
     });
     return false;
   } catch (error) {
-    console.error("Error checking payment status:", error);
-    setStatus({
-      currentStatus: "An error occurred. Please try again later.",
-      title: "Error",
+    await runTransaction(db, async (transaction) => {
+      transaction.update(userPaymentsRef, {
+        bankRRN: bankRRN, // Store the BankRRN
+        paymentDate: new Date().toISOString(),
+        updatedDate: new Date().toISOString(),
+      });
     });
+    console.error("Error checking payment status:", error);
+    setStatus({ currentStatus: "", title: "" });
+    setError(
+      "A server error occurred. Please decline the payment request if prompted. "
+    );
   }
 }
 
-// Function to handle Firestore transaction and prevent parallel writes
+// Handle payment transaction and Firestore updates
 export async function handlePaymentTransaction(
   userDocID,
   courseDetails,
@@ -144,45 +170,31 @@ export async function handlePaymentTransaction(
   const timeStamp = getCurrentTimestamp();
   const now = new Date();
   const formattedDate = now.toLocaleDateString("en-GB", {
-    day: "2-digit", // day with leading zero if necessary
-    month: "short", // abbreviated month name
-    year: "numeric", // 4-digit year
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
 
   const receiptData = {
-    paymentStatus: "Approved", // Payment status
-    paymentType: "UPI", // Payment type
-    courseId: courseDetails.id, // Add the courseId
+    paymentStatus: "Approved",
+    paymentType: "UPI",
+    courseId: courseDetails.id,
     courseName: courseDetails.name,
-    guide: formData.dasajiName,
+    dasajiName: formData.dasajiName,
     name: formData.name,
-    receiptNumber: `KE-TEST24-${timeStamp}`,
+    receiptNumber: `KE-${courseDetails.invoiceCode}-${timeStamp}`,
     amount: formData.amount,
     amountInWords: n2words(formData.amount),
     paymentDate: formattedDate,
-    address: `${
-      formData.address +
-      ", " +
-      formData.cityOrDist +
-      ", " +
-      formData.state +
-      ", " +
-      formData.country +
-      ", " +
-      formData.pincode
-    }`,
-    aadhar: formData.aadhar,
-    pan: formData.pan || "",
-    email: formData.email,
-    phone: formData.phone,
+    address: `${formData.address}, ${formData.cityOrDist}, ${formData.state}, ${formData.country}, ${formData.pincode}`,
+    aadharOrPan: formData.aadhar,
+    emailphone: localStorage.getItem("email") || localStorage.getItem("phone"),
   };
 
   await runTransaction(db, async (transaction) => {
-    // First, get all the necessary data before performing any writes
     const userPaymentDoc = await transaction.get(userPaymentsRef);
     const userDoc = await transaction.get(userDocRef);
 
-    // Check if the course has already been purchased (payment status Completed)
     if (
       userPaymentDoc.exists() &&
       userPaymentDoc.data().paymentStatus === "Approved"
@@ -190,97 +202,23 @@ export async function handlePaymentTransaction(
       throw new Error("This course has already been purchased.");
     }
 
-    // If the course was previously in "Pending" status, reset the status
-    if (
-      userPaymentDoc.exists() &&
-      userPaymentDoc.data().paymentStatus === "Pending"
-    ) {
-      transaction.update(userPaymentsRef, { paymentStatus: "Pending" }); // Reset to Pending
-    }
-
-    // Set payment data in Firestore
     transaction.set(userPaymentsRef, receiptData);
 
-    // Handle courses update in the user document
-    const courses = userDoc.exists() ? userDoc.data()?.courses || [] : [];
-    const updateData = {};
-
-    // If the course isn't in the user's courses, add it
+    const userData = userDoc.exists() ? userDoc.data() : {};
+    const courses = userData.courses || [];
     if (!courses.includes(courseDetails.id)) {
-      courses.push(courseDetails.id);
-      updateData.courses = courses;
-    }
-    const updateTime = userDoc.updateTime;
-
-    // Checking and adding fields only if they don't exist in the document
-    if (userDoc.exists()) {
-      // If document exists, check each field
-      const existingData = userDoc.data();
-
-      if (formData.address && !existingData?.address) {
-        updateData.address = formData.address;
-      }
-      if (formData.cityOrDist && !existingData?.city) {
-        updateData.city = formData.cityOrDist;
-      }
-      if (formData.state && !existingData?.state) {
-        updateData.state = formData.state;
-      }
-      if (formData.country && !existingData?.country) {
-        updateData.country = formData.country;
-      }
-      if (formData.pincode && !existingData?.pincode) {
-        updateData.pincode = formData.pincode;
-      }
-      if (formData.aadhar && !existingData?.aadhar) {
-        updateData.aadhar = formData.aadhar;
-      }
-      if (formData.pan && !existingData?.pan) {
-        updateData.pan = formData.pan;
-      }
-      if (!existingData?.email) {
-        updateData.email = localStorage.getItem("email") || formData.email;
-      }
-      if (!existingData?.phone) {
-        updateData.phone =
-          "+91" + (localStorage.getItem("phone") || formData.phone);
-      }
-
-      // If there is any data to update, perform an update
-      if (Object.keys(updateData).length > 0) {
-        await runTransaction(db, async (transaction) => {
-          transaction.update(userDocRef, updateData, {
-            currentDocument: {
-              updateTime,
-            },
-          });
-        });
-      }
-    } else {
-      // If document doesn't exist, create the document with all fields
-      await runTransaction(db, async (transaction) => {
-        transaction.set(userDocRef, {
-          courses: [courseDetails.id],
-          address: formData.address,
-          city: formData.cityOrDist,
-          state: formData.state,
-          country: formData.country,
-          pincode: formData.pincode,
-          aadhar: formData.aadhar,
-          pan: formData.pan || "",
-          email: localStorage.getItem("email") || formData.email,
-          phone: "+91" + (localStorage.getItem("phone") || formData.phone),
-        });
+      transaction.update(userDocRef, {
+        courses: [...courses, courseDetails.id],
+        emailphone:
+          localStorage.getItem("email") || localStorage.getItem("phone"),
       });
     }
-  }).catch((error) => {
-    console.error("Transaction failed:", error);
-    throw error;
   });
-  console.log("Receipt Data:", receiptData);
+
   return receiptData;
 }
 
+// Handle failed payments
 export async function handleFailedPayment(userDocID, courseID) {
   const userPaymentsRef = doc(
     db,
@@ -295,9 +233,8 @@ export async function handleFailedPayment(userDocID, courseID) {
 
     if (userPaymentDoc.exists()) {
       const paymentData = userPaymentDoc.data();
-      // If payment status is still "Pending", we mark it as "Failed"
       if (paymentData.paymentStatus === "Pending") {
-        transaction.update(userPaymentsRef, { paymentStatus: "Failed" });
+        transaction.update(userPaymentsRef, { paymentStatus: "Rejected" });
       }
     }
   }).catch((error) => {
@@ -306,10 +243,11 @@ export async function handleFailedPayment(userDocID, courseID) {
   });
 }
 
+// Generate unique IDs for transactions
 export function generateUniqueIds() {
-  const subMerchantId = uuidv4().replace(/-/g, ""); // Generates a unique subMerchantId
-  const merchantTranId = uuidv4().replace(/-/g, ""); // Generates a unique merchantTranId
-  const billNumber = `BILL-${Date.now()}-${Math.floor(Math.random() * 1000)}`; // Creates a unique billNumber
+  const subMerchantId = uuidv4().replace(/-/g, "");
+  const merchantTranId = uuidv4().replace(/-/g, "");
+  const billNumber = `BILL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
   return {
     subMerchantId,
@@ -318,9 +256,9 @@ export function generateUniqueIds() {
   };
 }
 
+// Format date for UPI payment expiry
 export function formatDate() {
   const addingFiveMinutes = new Date();
-  addingFiveMinutes.setMinutes(addingFiveMinutes.getMinutes() + 5); // Adds 5 minutes
-  const formattedDate = format(addingFiveMinutes, "dd/MM/yyyy hh:mm a");
-  return formattedDate;
+  addingFiveMinutes.setMinutes(addingFiveMinutes.getMinutes() + 5);
+  return format(addingFiveMinutes, "dd/MM/yyyy hh:mm a");
 }

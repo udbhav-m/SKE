@@ -18,20 +18,25 @@ const formatDateTime = (timestamp) => {
   });
 };
 
-function Tabs({ types, registeredCourses, unregisteredCourses, userPayments }) {
+function Tabs({
+  types,
+  registeredCourses,
+  unregisteredCourses,
+  pendingCourses,
+  userPayments,
+}) {
   const [isActive, setIsActive] = useState(0);
   const [unReg, setUnReg] = useState(true);
   const navigate = useNavigate();
-  const location = useLocation(); // Get the current location
+  const location = useLocation();
 
   useEffect(() => {
-    // Listen for changes in the URL hash and activate the correct tab
     if (location.hash === "#registered-events") {
       setIsActive(1);
-      setUnReg(false); // Show registered courses
+      setUnReg(false);
     } else {
       setIsActive(0);
-      setUnReg(true); // Show unregistered courses
+      setUnReg(true);
     }
   }, [location]);
 
@@ -56,6 +61,8 @@ function Tabs({ types, registeredCourses, unregisteredCourses, userPayments }) {
       navigate("/receipt", { state: { receiptData: paymentData } });
     }
   };
+
+  const isPending = (courseId) => pendingCourses.includes(courseId);
 
   return (
     <>
@@ -84,9 +91,10 @@ function Tabs({ types, registeredCourses, unregisteredCourses, userPayments }) {
               image={course?.image}
               name={course?.name}
               description={course?.description}
-              date={formatDateTime(course?.date_time)} // Format date_time here
-              label={"Pay now"}
-              onClick={() => handleOnPay(course)}
+              date={formatDateTime(course?.date_time)} 
+              label={isPending(course.id) ? "Pending" : "Pay now"}
+              onClick={isPending(course.id) ? null : () => handleOnPay(course)} 
+              disabled={isPending(course.id)} 
             />
           ))}
       </div>
@@ -101,8 +109,7 @@ function Tabs({ types, registeredCourses, unregisteredCourses, userPayments }) {
               key={course?.id}
               image={course?.image}
               name={course?.name}
-              description={course?.description}
-              date={formatDateTime(course?.date_time)} // Format date_time here
+              date={formatDateTime(course?.date_time)} 
               label={"View receipt"}
               onClick={() => handleDownloadPDF(course)}
             />

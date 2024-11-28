@@ -72,7 +72,7 @@ function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     ids = generateUniqueIds();
-    date = formatDate()
+    date = formatDate();
     setRequestBody((prevData) => ({
       ...prevData,
       collectByDate: date,
@@ -86,33 +86,28 @@ function Register() {
     checkPhoneEmail(formData, setError, setInprogress);
 
     const newInvalidFields = {};
-
-    // Validate all fields
     Object.keys(formData).forEach((field) => {
       const isInvalid = isFieldInvalid(field, formData[field]);
       if (field === "pan") {
         if (formData.amount >= 50000 && isInvalid) {
-          newInvalidFields[field] = true; // PAN is mandatory for amounts >= 50000
-        } else if (formData.amount < 50000) {
-          // If amount is less than 50000, PAN is not mandatory, mark it as valid
-          delete newInvalidFields[field];
+          newInvalidFields[field] = "PAN is required for amounts >= 50000";
         }
       } else if (isInvalid) {
-        newInvalidFields[field] = true;
+        newInvalidFields[field] = isInvalid;
       }
     });
 
     setInvalidFields(newInvalidFields);
 
     // If any field is invalid, prevent submission
-    if (Object.values(newInvalidFields).some((value) => value)) {
+    if (Object.keys(newInvalidFields).length > 0) {
+      setError("Please fill the fields in the form.");
       return;
     }
 
-    setInprogress(true);
-
     if (error) return;
 
+    setInprogress(true);
     try {
       const userPaymentsRef = doc(
         db,
@@ -121,6 +116,8 @@ function Register() {
         "user_payments",
         courseDetails.id
       );
+      const userDocRef = doc(db, "users", userDocID);
+      const userDoc = await getDoc(userDocRef);
       const courseDoc = await getDoc(userPaymentsRef);
 
       if (courseDoc.exists()) {
@@ -141,13 +138,25 @@ function Register() {
 
       // Set the payment status to "Pending" before making the payment
       await runTransaction(db, async (transaction) => {
+        // Add the course ID to the "pending" array and set the payment as pending
         transaction.set(userPaymentsRef, {
           paymentDate: new Date().toISOString(),
           paymentStatus: "Pending",
           paymentType: "UPI",
           courseId: courseDetails.id,
           courseName: courseDetails.name,
+          emailphone:
+            localStorage.getItem("email") || localStorage.getItem("phone"),
+          name: formData.name,
+          dasajiName: formData.dasajiName,
+          updatedDate: new Date().toISOString(),
         });
+
+        // Update the user document with the "pending" array
+
+        const pending = userDoc.exists() ? userDoc.data()?.pending || [] : [];
+        pending.push(courseDetails.id);
+        transaction.set(userDocRef, { pending }, { merge: true });
       });
 
       setStatus({
@@ -162,10 +171,12 @@ function Register() {
         checkPayment(
           BankRRN,
           setStatus,
+          setError,
           userDocID,
           courseDetails,
           formData,
-          navigate
+          navigate,
+          userPaymentsRef
         );
         setInprogress(false);
       } else {
@@ -187,11 +198,11 @@ function Register() {
   };
 
   const handleOnChange = (field, value) => {
-    const isInvalid = isFieldInvalid(field, value);
+    const errorMessage = isFieldInvalid(field, value);
 
     setInvalidFields((previousInvalidFields) => ({
       ...previousInvalidFields,
-      [field]: isInvalid,
+      [field]: errorMessage,
     }));
 
     setFormData((prevData) => ({
@@ -249,126 +260,209 @@ function Register() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Name (from localStorage, uneditable) */}
-          <InputField
-            label="Name"
-            value={formData.name}
-            onChange={(e) => handleOnChange("name", e.target.value)}
-            disabled
-          />
+          <div>
+            <InputField
+              label="Name"
+              value={formData.name}
+              onChange={(e) => handleOnChange("name", e.target.value)}
+              disabled
+            />
+            {invalidFields.name && (
+              <p className="text-red-500 text-sm mt-1">{invalidFields.name}</p>
+            )}
+          </div>
 
           {/* Dasa Name */}
-          <SelectField
-            label="Dasa Name"
-            value={formData.dasajiName}
-            onChange={(e) => handleOnChange("dasajiName", e.target.value)}
-            options={guides}
-            hasError={invalidFields.dasajiName}
-          />
+          <div>
+            <SelectField
+              label="Dasa Name"
+              value={formData.dasajiName}
+              onChange={(e) => handleOnChange("dasajiName", e.target.value)}
+              options={guides}
+              hasError={invalidFields.dasajiName}
+            />
+            {invalidFields.dasajiName && (
+              <p className="text-red-500 text-sm mt-1">
+                {invalidFields.dasajiName}
+              </p>
+            )}
+          </div>
 
           {/* Address */}
-          <InputField
-            label="Address"
-            value={formData.address}
-            onChange={(e) => handleOnChange("address", e.target.value)}
-            hasError={invalidFields.address}
-          />
+          <div>
+            <InputField
+              label="Address"
+              value={formData.address}
+              onChange={(e) => handleOnChange("address", e.target.value)}
+              hasError={invalidFields.address}
+            />
+            {invalidFields.address && (
+              <p className="text-red-500 text-sm mt-1">
+                {invalidFields.address}
+              </p>
+            )}
+          </div>
 
           {/* City */}
-          <InputField
-            label="City"
-            value={formData.cityOrDist}
-            onChange={(e) => handleOnChange("cityOrDist", e.target.value)}
-            hasError={invalidFields.cityOrDist}
-          />
+          <div>
+            <InputField
+              label="City"
+              value={formData.cityOrDist}
+              onChange={(e) => handleOnChange("cityOrDist", e.target.value)}
+              hasError={invalidFields.cityOrDist}
+            />
+            {invalidFields.cityOrDist && (
+              <p className="text-red-500 text-sm mt-1">
+                {invalidFields.cityOrDist}
+              </p>
+            )}
+          </div>
 
           {/* State */}
-          <InputField
-            label="State"
-            value={formData.state}
-            onChange={(e) => handleOnChange("state", e.target.value)}
-            hasError={invalidFields.state}
-          />
+          <div>
+            <InputField
+              label="State"
+              value={formData.state}
+              onChange={(e) => handleOnChange("state", e.target.value)}
+              hasError={invalidFields.state}
+            />
+            {invalidFields.state && (
+              <p className="text-red-500 text-sm mt-1">{invalidFields.state}</p>
+            )}
+          </div>
 
           {/* Country */}
-          <SelectField
-            label="Country"
-            value={formData.country}
-            onChange={(e) => handleOnChange("country", e.target.value)}
-            options={countries}
-            hasError={invalidFields.country}
-          />
+          <div>
+            <SelectField
+              label="Country"
+              value={formData.country}
+              onChange={(e) => handleOnChange("country", e.target.value)}
+              options={countries}
+              hasError={invalidFields.country}
+            />
+            {invalidFields.country && (
+              <p className="text-red-500 text-sm mt-1">
+                {invalidFields.country}
+              </p>
+            )}
+          </div>
 
           {/* Pincode */}
-          <InputField
-            label="Pincode"
-            value={formData.pincode}
-            onChange={(e) => handleOnChange("pincode", e.target.value)}
-            hasError={invalidFields.pincode}
-          />
+          <div>
+            <InputField
+              label="Pincode"
+              value={formData.pincode}
+              onChange={(e) => handleOnChange("pincode", e.target.value)}
+              hasError={invalidFields.pincode}
+            />
+            {invalidFields.pincode && (
+              <p className="text-red-500 text-sm mt-1">
+                {invalidFields.pincode}
+              </p>
+            )}
+          </div>
 
           {/* Aadhar */}
-          <InputField
-            label="Aadhar"
-            value={formData.aadhar}
-            onChange={(e) => handleOnChange("aadhar", e.target.value)}
-            hasError={invalidFields.aadhar}
-          />
+          <div>
+            <InputField
+              label="Aadhar"
+              value={formData.aadhar}
+              onChange={(e) => handleOnChange("aadhar", e.target.value)}
+              hasError={invalidFields.aadhar}
+            />
+            {invalidFields.aadhar && (
+              <p className="text-red-500 text-sm mt-1">
+                {invalidFields.aadhar}
+              </p>
+            )}
+          </div>
 
           {/* Gothram */}
-          <InputField
-            label="Gothram"
-            value={formData.gothram}
-            onChange={(e) => handleOnChange("gothram", e.target.value)}
-            hasError={invalidFields.gothram}
-          />
+          <div>
+            <InputField
+              label="Gothram"
+              value={formData.gothram}
+              onChange={(e) => handleOnChange("gothram", e.target.value)}
+              hasError={invalidFields.gothram}
+            />
+            {invalidFields.gothram && (
+              <p className="text-red-500 text-sm mt-1">
+                {invalidFields.gothram}
+              </p>
+            )}
+          </div>
 
           {/* Sankalpam */}
-          <InputField
-            label="Sankalpam"
-            value={formData.sankalpam}
-            onChange={(e) => handleOnChange("sankalpam", e.target.value)}
-            hasError={invalidFields.sankalpam}
-          />
+          <div>
+            <InputField
+              label="Sankalpam"
+              value={formData.sankalpam}
+              onChange={(e) => handleOnChange("sankalpam", e.target.value)}
+              hasError={invalidFields.sankalpam}
+            />
+            {invalidFields.sankalpam && (
+              <p className="text-red-500 text-sm mt-1">
+                {invalidFields.sankalpam}
+              </p>
+            )}
+          </div>
 
           {/* Email */}
-          <InputField
-            label="Email"
-            value={formData.email}
-            onChange={(e) => handleOnChange("email", e.target.value)}
-            disabled={!isEmailEditable}
-            hasError={invalidFields.email}
-          />
+          <div>
+            <InputField
+              label="Email"
+              value={formData.email}
+              onChange={(e) => handleOnChange("email", e.target.value)}
+              disabled={!isEmailEditable}
+              hasError={invalidFields.email}
+            />
+            {invalidFields.email && (
+              <p className="text-red-500 text-sm mt-1">{invalidFields.email}</p>
+            )}
+          </div>
 
           {/* Phone */}
-          <InputField
-            label="Phone"
-            value={formData.phone}
-            onChange={(e) => handleOnChange("phone", e.target.value)}
-            disabled={!isPhoneEditable}
-            hasError={invalidFields.phone}
-          />
+          <div>
+            <InputField
+              label="Phone"
+              value={formData.phone}
+              onChange={(e) => handleOnChange("phone", e.target.value)}
+              disabled={!isPhoneEditable}
+              hasError={invalidFields.phone}
+            />
+            {invalidFields.phone && (
+              <p className="text-red-500 text-sm mt-1">{invalidFields.phone}</p>
+            )}
+          </div>
 
           {/* UPI ID */}
-          <InputField
-            label="UPI ID"
-            value={formData.upiId}
-            onChange={(e) => {
-              handleOnChange("upiId", e.target.value);
-              setRequestBody({ ...requestBody, payerVa: e.target.value });
-            }}
-            hasError={invalidFields.upiId}
-          />
-          {/* Pan */}
-          {formData.amount >= 50000 ? (
+          <div>
             <InputField
-              label="PAN number"
-              value={formData.pan}
+              label="UPI ID"
+              value={formData.upiId}
               onChange={(e) => {
-                handleOnChange("pan", e.target.value);
+                handleOnChange("upiId", e.target.value);
                 setRequestBody({ ...requestBody, payerVa: e.target.value });
               }}
               hasError={invalidFields.upiId}
             />
+          </div>
+          {/* Pan */}
+          {formData.amount >= 50000 ? (
+            <div>
+              <InputField
+                label="PAN number"
+                value={formData.pan}
+                onChange={(e) => {
+                  handleOnChange("pan", e.target.value);
+                  setRequestBody({ ...requestBody, payerVa: e.target.value });
+                }}
+                hasError={invalidFields.upiId}
+              />
+              {invalidFields.pan && (
+                <p className="text-red-500 text-sm mt-1">{invalidFields.pan}</p>
+              )}
+            </div>
           ) : (
             ""
           )}

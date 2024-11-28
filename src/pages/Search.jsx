@@ -38,8 +38,8 @@ function Search() {
     if (foundDoc && localStorage.getItem("docId")) {
       navigate("/home");
     } else {
-      setError("User not found");
-      setTimeout(() => setError(""), 10000);
+      setError("User not found. Please create an account in the Kalki Events app through mobile.");
+      setTimeout(() => setError(""), 15000);
     }
   }
 
@@ -95,6 +95,7 @@ function Search() {
           >
             {isLoading ? "Searching..." : "Find"}
           </button>
+          
           {err && (
             <p className="text-center  font-semibold text-red-500">
               {err}
