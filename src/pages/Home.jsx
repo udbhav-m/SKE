@@ -12,10 +12,10 @@ function Home() {
   const email = localStorage.getItem("email");
   const [unRegisteredEvents, setUnRegisteredEvents] = useState([]);
   const [registeredEvents, setRegisteredEvents] = useState([]);
-  const [userCourses, setCourses] = useState([]); // State to hold user courses
-  const [pendingCourses, setPendingCourses] = useState([]); // State to hold pending courses
-  const [userPayments, setUserPayments] = useState([]); // State to hold user payments
-  const [isUserLoaded, setIsUserLoaded] = useState(false); // New state to track user loading
+  const [userCourses, setCourses] = useState([]); 
+  const [pendingCourses, setPendingCourses] = useState([]); 
+  const [userPayments, setUserPayments] = useState([]); 
+  const [isUserLoaded, setIsUserLoaded] = useState(false); 
 
   async function getUser() {
     const userDocRef = doc(db, "users", docId);
@@ -25,12 +25,12 @@ function Home() {
       const data = userDoc.data();
       if (data.phone === "+91" + phone || data.email === email) {
         localStorage.setItem("name", data.name);
-        setCourses(data.courses || []); // Set user courses
-        setPendingCourses(data.pending || []); // Set pending courses
-        await getUserPayments(); // Fetch payments after setting courses
+        setCourses(data.courses || []); 
+        setPendingCourses(data.pending || []); 
+        await getUserPayments(); 
       }
     }
-    setIsUserLoaded(true); // Set user data as loaded
+    setIsUserLoaded(true); 
   }
 
   async function getUserPayments() {
@@ -47,7 +47,7 @@ function Home() {
       };
     });
 
-    setUserPayments(payments); // Store user payments in state
+    setUserPayments(payments); 
   }
 
   async function getAllCourses() {
@@ -91,9 +91,10 @@ function Home() {
         types={types}
         registeredCourses={registeredEvents}
         unregisteredCourses={unRegisteredEvents}
-        pendingCourses={pendingCourses} // Pass pending courses as prop
+        pendingCourses={pendingCourses} 
         userPayments={userPayments}
       />
+      
     </div>
   );
 }

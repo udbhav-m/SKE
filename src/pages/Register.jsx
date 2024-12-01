@@ -19,9 +19,12 @@ import { db } from "../utils/firebaseConfig";
 import {
   checkPhoneEmail,
   countriesList,
+  getCurrentTimestamp,
   isFieldInvalid,
   setPhoneMailName,
 } from "../utils/utils";
+import { format } from "date-fns";
+import n2words from "n2words";
 
 function Register() {
   const location = useLocation();
@@ -36,6 +39,7 @@ function Register() {
   const [status, setStatus] = useState({ currentStatus: "", title: "" });
   const [inProgress, setInprogress] = useState(false);
   const [invalidFields, setInvalidFields] = useState({});
+  const [userDoc, setUserDoc] = useState(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -50,8 +54,8 @@ function Register() {
     sankalpam: "",
     email: "",
     phone: "",
+    pan: "",
     upiId: "",
-    // pan: "",
     amount: courseDetails.amount,
   });
 
@@ -69,10 +73,58 @@ function Register() {
   const [isPhoneEditable, setIsPhoneEditable] = useState(true);
   const [isEmailEditable, setIsEmailEditable] = useState(true);
 
+  useEffect(() => {
+    const initializeData = async () => {
+      try {
+        const userDocID = localStorage.getItem("docId");
+        if (!userDocID) return;
+
+        const userDocRef = doc(db, "users", userDocID);
+        const userDocSnapshot = await getDoc(userDocRef);
+
+        if (userDocSnapshot.exists()) {
+          const userData = userDocSnapshot.data();
+          setUserDoc(userDocSnapshot);
+          setFormData((prevData) => ({
+            ...prevData,
+            dasajiName: userData.guide || userData.dasajiName || "",
+            address: userData.address || "",
+            cityOrDist: userData.cityOrDist || userData.city || "",
+            state: userData.state || "",
+            country: userData.country || "India",
+            pincode: userData.pincode || "",
+            aadhar: userData.aadhar || "",
+            gothram: userData.gothram || "",
+            sankalpam: userData.sankalpam || "",
+          }));
+        }
+
+        const fetchedAmount = courseDetails.inr_amount;
+        setFormData((prevData) => ({ ...prevData, amount: fetchedAmount }));
+        setRequestBody((prevData) => ({
+          ...prevData,
+          amount: fetchedAmount,
+          note: "payment",
+        }));
+
+        setPhoneMailName(setFormData, setIsPhoneEditable, setIsEmailEditable);
+
+        const guideNames = await fetchGuideNames();
+        setGuides(guideNames);
+      } catch (error) {
+        console.error("Error initializing data:", error);
+      }
+    };
+
+    initializeData();
+  }, [courseDetails]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     ids = generateUniqueIds();
     date = formatDate();
+    const userDocID = localStorage.getItem("docId");
+
     setRequestBody((prevData) => ({
       ...prevData,
       collectByDate: date,
@@ -80,8 +132,6 @@ function Register() {
       merchantTranId: ids.merchantTranId,
       billNumber: ids.billNumber,
     }));
-    const userDocID = localStorage.getItem("docId");
-    // const courseID = ;
 
     checkPhoneEmail(formData, setError, setInprogress);
 
@@ -99,7 +149,6 @@ function Register() {
 
     setInvalidFields(newInvalidFields);
 
-    // If any field is invalid, prevent submission
     if (Object.keys(newInvalidFields).length > 0) {
       setError("Please fill the fields in the form.");
       return;
@@ -117,44 +166,73 @@ function Register() {
         courseDetails.id
       );
       const userDocRef = doc(db, "users", userDocID);
-      const userDoc = await getDoc(userDocRef);
       const courseDoc = await getDoc(userPaymentsRef);
 
+      const timeStamp = getCurrentTimestamp();
+      const now = new Date();
+      const formattedDate = format(now, "dd-MMM-yyyy");
+
       if (courseDoc.exists()) {
-        // If course is already purchased
         const paymentStatus = courseDoc.data().paymentStatus;
         if (paymentStatus === "Approved") {
           setError("You have already purchased this course.");
           setInprogress(false);
           return;
-        } else if (paymentStatus === "Pending") {
+        } else if (paymentStatus === "Intiated") {
           setError(
-            "Payment is already in progress. Please wait or cancel the current request."
+            "Payment is already initiated. Please wait or cancel the current request."
           );
           setInprogress(false);
           return;
         }
       }
 
-      // Set the payment status to "Pending" before making the payment
       await runTransaction(db, async (transaction) => {
-        // Add the course ID to the "pending" array and set the payment as pending
+        // Update user document with form fields
+        transaction.set(
+          userDocRef,
+          {
+            guide: formData.dasajiName,
+            address: formData.address,
+            cityOrDist: formData.cityOrDist,
+            state: formData.state,
+            country: formData.country,
+            pincode: formData.pincode,
+            aadhar: formData.aadhar,
+            gothram: formData.gothram,
+            sankalpam: formData.sankalpam,
+          },
+          { merge: true }
+        );
+
+        // Set payment document
         transaction.set(userPaymentsRef, {
-          paymentDate: new Date().toISOString(),
-          paymentStatus: "Pending",
+          paymentDate: formattedDate,
+          paymentStatus: "Intiated",
           paymentType: "UPI",
           courseId: courseDetails.id,
           courseName: courseDetails.name,
+          phone: formData.phone,
+          email: formData.email,
           emailphone:
-            localStorage.getItem("email") || localStorage.getItem("phone"),
+            localStorage.getItem("email") ||
+            "+91" + localStorage.getItem("phone"),
           name: formData.name,
           dasajiName: formData.dasajiName,
           updatedDate: new Date().toISOString(),
+          receiptNumber: `KE-${courseDetails.invoiceCode}-${timeStamp}`,
+          amount: formData.amount,
+          amountInWords: n2words(formData.amount),
+          fullAddress: `${formData.address}, ${formData.cityOrDist}, ${formData.state}, ${formData.country}, ${formData.pincode}`,
+          address: formData.address,
+          cityOrDist: formData.cityOrDist,
+          state: formData.state,
+          country: formData.country,
+          pan: formData.pan || "",
+          aadharOrPan: formData.aadhar,
         });
 
-        // Update the user document with the "pending" array
-
-        const pending = userDoc.exists() ? userDoc.data()?.pending || [] : [];
+        const pending = userDoc?.data()?.pending || [];
         pending.push(courseDetails.id);
         transaction.set(userDocRef, { pending }, { merge: true });
       });
@@ -165,7 +243,7 @@ function Register() {
       });
 
       const BankRRN = await makePayment({ reqBodyData: requestBody });
-      console.log("bank RRN", BankRRN);
+      console.log("Payment BankRRN:", BankRRN);
 
       if (BankRRN) {
         checkPayment(
@@ -174,14 +252,23 @@ function Register() {
           setError,
           userDocID,
           courseDetails,
-          formData,
           navigate,
           userPaymentsRef
         );
         setInprogress(false);
       } else {
         await runTransaction(db, async (transaction) => {
-          transaction.delete(userPaymentsRef); // Remove the "Pending" payment status document
+          const pending = userDoc?.data()?.pending || [];
+          const updatedPending = pending.filter(
+            (id) => id !== courseDetails.id
+          );
+
+          transaction.delete(userPaymentsRef);
+          transaction.set(
+            userDocRef,
+            { pending: updatedPending },
+            { merge: true }
+          );
         });
         setStatus({ currentStatus: "", title: "" });
         setError(
@@ -190,7 +277,7 @@ function Register() {
         setInprogress(false);
       }
     } catch (error) {
-      console.error("Error initiating payment:", error);
+      console.error("Payment initiation error:", error);
       setInprogress(false);
       setError("Something went wrong. Please try again.");
       setStatus({ currentStatus: "", title: "" });
@@ -210,25 +297,6 @@ function Register() {
       [field]: value,
     }));
   };
-
-  useEffect(() => {
-    console.log(courseDetails);
-    const fetchedAmount = courseDetails.inr_amount;
-    setFormData((prevData) => ({ ...prevData, amount: fetchedAmount }));
-    setRequestBody((prevData) => ({ ...prevData, amount: fetchedAmount }));
-    setRequestBody((prevData) => ({
-      ...prevData,
-      note: `payment`,
-    }));
-
-    setPhoneMailName(setFormData, setIsPhoneEditable, setIsEmailEditable);
-
-    async function loadGuides() {
-      const guideNames = await fetchGuideNames();
-      setGuides(guideNames);
-    }
-    loadGuides();
-  }, [courseDetails]);
 
   return (
     <>
@@ -259,7 +327,6 @@ function Register() {
         </h1>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Name (from localStorage, uneditable) */}
           <div>
             <InputField
               label="Name"
@@ -272,7 +339,6 @@ function Register() {
             )}
           </div>
 
-          {/* Dasa Name */}
           <div>
             <SelectField
               label="Dasa Name"
@@ -288,7 +354,6 @@ function Register() {
             )}
           </div>
 
-          {/* Address */}
           <div>
             <InputField
               label="Address"
@@ -303,7 +368,6 @@ function Register() {
             )}
           </div>
 
-          {/* City */}
           <div>
             <InputField
               label="City"
@@ -318,7 +382,6 @@ function Register() {
             )}
           </div>
 
-          {/* State */}
           <div>
             <InputField
               label="State"
@@ -331,7 +394,6 @@ function Register() {
             )}
           </div>
 
-          {/* Country */}
           <div>
             <SelectField
               label="Country"
@@ -347,7 +409,6 @@ function Register() {
             )}
           </div>
 
-          {/* Pincode */}
           <div>
             <InputField
               label="Pincode"
@@ -362,7 +423,6 @@ function Register() {
             )}
           </div>
 
-          {/* Aadhar */}
           <div>
             <InputField
               label="Aadhar"
@@ -377,7 +437,6 @@ function Register() {
             )}
           </div>
 
-          {/* Gothram */}
           <div>
             <InputField
               label="Gothram"
@@ -392,7 +451,6 @@ function Register() {
             )}
           </div>
 
-          {/* Sankalpam */}
           <div>
             <InputField
               label="Sankalpam"
@@ -407,7 +465,6 @@ function Register() {
             )}
           </div>
 
-          {/* Email */}
           <div>
             <InputField
               label="Email"
@@ -421,7 +478,6 @@ function Register() {
             )}
           </div>
 
-          {/* Phone */}
           <div>
             <InputField
               label="Phone"
@@ -435,7 +491,6 @@ function Register() {
             )}
           </div>
 
-          {/* UPI ID */}
           <div>
             <InputField
               label="UPI ID"
@@ -446,8 +501,11 @@ function Register() {
               }}
               hasError={invalidFields.upiId}
             />
+            {invalidFields.upiId && (
+              <p className="text-red-500 text-sm mt-1">{invalidFields.upiId}</p>
+            )}
           </div>
-          {/* Pan */}
+
           {formData.amount >= 50000 ? (
             <div>
               <InputField
@@ -463,12 +521,9 @@ function Register() {
                 <p className="text-red-500 text-sm mt-1">{invalidFields.pan}</p>
               )}
             </div>
-          ) : (
-            ""
-          )}
+          ) : null}
         </div>
 
-        {/* Amount */}
         <div className="mt-4">
           <label className="block text-sm font-medium text-gray-700">
             Amount
@@ -481,7 +536,6 @@ function Register() {
           />
         </div>
 
-        {/* Submit Button */}
         <button
           type="submit"
           className="mt-5 bg-[#E5870D] text-white py-3 px-4 rounded-md hover:bg-[#d7790a] focus:ring focus:ring-indigo-200 focus:ring-opacity-50"

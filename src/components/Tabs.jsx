@@ -91,12 +91,19 @@ function Tabs({
               image={course?.image}
               name={course?.name}
               description={course?.description}
-              date={formatDateTime(course?.date_time)} 
+              date={formatDateTime(course?.date_time)}
               label={isPending(course.id) ? "Pending" : "Pay now"}
-              onClick={isPending(course.id) ? null : () => handleOnPay(course)} 
-              disabled={isPending(course.id)} 
+              onClick={isPending(course.id) ? null : () => handleOnPay(course)}
+              disabled={isPending(course.id)}
             />
           ))}
+        <h1
+          className={`text-black font-semibold ${
+            unregisteredCourses.length < 1 ? "visible" : "hidden"
+          }`}
+        >
+          There are no Active courses at the moment.
+        </h1>
       </div>
       <div
         className={`${
@@ -109,11 +116,18 @@ function Tabs({
               key={course?.id}
               image={course?.image}
               name={course?.name}
-              date={formatDateTime(course?.date_time)} 
+              date={formatDateTime(course?.date_time)}
               label={"View receipt"}
               onClick={() => handleDownloadPDF(course)}
             />
           ))}
+        <h1
+          className={`text-black font-semibold ${
+            registeredCourses.length < 1 ? "visible" : "hidden"
+          }`}
+        >
+          You have no Active courses.
+        </h1>
       </div>
     </>
   );

@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth"; 
 
 const firebaseConfigDev = {
   apiKey: import.meta.env.VITE_DEV_API_KEY,
@@ -11,16 +12,20 @@ const firebaseConfigDev = {
   measurementId: import.meta.env.VITE_DEV_MEASUREMENT_ID,
 };
 
-const firebaseConfigSKE = {
-  apiKey: import.meta.env.VITE_SKE_TEST_API_KEY,
-  authDomain: import.meta.env.VITE_SKE_TEST_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_SKE_TEST_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_SKE_TEST_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_SKE_TEST_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_SKE_TEST_APP_ID,
-  measurementId: import.meta.env.VITE_SKE_TEST_MEASUREMENT_ID,
+const firebaseConfigProd = {
+  apiKey: import.meta.env.VITE_PROD_API_KEY,
+  authDomain: import.meta.env.VITE_PROD_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_PROD_DATABASE_URL,
+  projectId: import.meta.env.VITE_PROD_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_PROD_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_PROD_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_PROD_APP_ID,
+  measurementId: import.meta.env.VITE_PROD_MEASUREMENT_ID,
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfigDev);
+const app = initializeApp(firebaseConfigProd);
+
+// Initialize Firebase services
 export const db = getFirestore(app);
+export const auth = getAuth(app);  
