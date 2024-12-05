@@ -14,7 +14,7 @@ import {
 } from "../utils/payment-utils";
 import Processing from "../components/processing";
 import ErrorComponent from "../components/errorComp";
-import { doc, getDoc, runTransaction } from "firebase/firestore";
+import { doc, getDoc, runTransaction, Timestamp } from "firebase/firestore";
 import { db } from "../utils/firebaseConfig";
 import {
   checkPhoneEmail,
@@ -168,7 +168,6 @@ function Register() {
       const userDocRef = doc(db, "users", userDocID);
       const courseDoc = await getDoc(userPaymentsRef);
 
-      const timeStamp = getCurrentTimestamp();
       const now = new Date();
       const formattedDate = format(now, "dd-MMM-yyyy");
 
@@ -200,7 +199,7 @@ function Register() {
             pincode: formData.pincode,
             aadhar: formData.aadhar,
             gothram: formData.gothram,
-            sankalpam: formData.sankalpam,
+            pan: formData.pan || "",
           },
           { merge: true }
         );
@@ -219,8 +218,7 @@ function Register() {
             "+91" + localStorage.getItem("phone"),
           name: formData.name,
           dasajiName: formData.dasajiName,
-          updatedDate: new Date().toISOString(),
-          receiptNumber: `KE-${courseDetails.invoiceCode}-${timeStamp}`,
+          updatedDate: Timestamp.fromDate(new Date()),
           amount: formData.amount,
           amountInWords: n2words(formData.amount),
           fullAddress: `${formData.address}, ${formData.cityOrDist}, ${formData.state}, ${formData.country}, ${formData.pincode}`,
@@ -230,6 +228,7 @@ function Register() {
           country: formData.country,
           pan: formData.pan || "",
           aadharOrPan: formData.aadhar,
+          merchantTranId: ids?.merchantTranId
         });
 
         const pending = userDoc?.data()?.pending || [];
@@ -243,7 +242,7 @@ function Register() {
       });
 
       const BankRRN = await makePayment({ reqBodyData: requestBody });
-      console.log("Payment BankRRN:", BankRRN);
+      console.log(BankRRN);
 
       if (BankRRN) {
         checkPayment(

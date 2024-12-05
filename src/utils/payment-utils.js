@@ -5,6 +5,7 @@ import {
   collection,
   getDocs,
   getDoc,
+  Timestamp,
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 import axios from "axios";
@@ -31,7 +32,29 @@ export async function fetchGuideNames() {
   try {
     const guideDocs = await getDocs(collection(db, "guides"));
     const firstDoc = guideDocs.docs[0];
-    return firstDoc?.data()?.guidename || [];
+    let guideNames = firstDoc?.data()?.guidename || [];
+
+    const namesToRemove = [
+      "Nivedana Dasa",
+      "Adya Dasa",
+      "Divi Dasa",
+      "Pradeep Dasa",
+      "Purna Dasa",
+      "Sumitra Dasa",
+      "Suvrata Dasa",
+      "Vandana Dasa",
+      "Vijaya Kumar Dasa",
+      "Vishishita Dasa",
+      "Ambica Dasa",
+      "Anupama Dasa",
+      "Indira Dasa",
+      "Kanchan Dasa",
+    ];
+
+    // Filter out the specified names
+    guideNames = guideNames.filter((name) => !namesToRemove.includes(name));
+
+    return guideNames;
   } catch (error) {
     console.error("Error fetching guide names:", error);
     return [];
@@ -69,7 +92,7 @@ export async function checkPayment(
     await runTransaction(db, async (transaction) => {
       transaction.update(userPaymentsRef, {
         paymentId: bankRRN,
-        updatedDate: new Date().toISOString(),
+        updatedDate: Timestamp.fromDate(new Date()),
       });
     });
   };
@@ -79,6 +102,7 @@ export async function checkPayment(
       const { data } = await axios.get(
         `${import.meta.env.VITE_CHECKPAY_API}${bankRRN}`
       );
+      console.log( data?.data?.txnStatus);
 
       if (attempt === 0) await updatePaymentRef();
 
@@ -86,9 +110,11 @@ export async function checkPayment(
 
       if (txnStatus === "SUCCESS") {
         setStatus({ currentStatus: "Almost there..", title: "Success" });
+        console.log(data?.data?.receiptSerialNo);
         const receiptData = await handlePaymentTransaction(
           userDocID,
-          courseDetails
+          courseDetails,
+          data?.data?.receiptSerialNo
         );
 
         if (receiptData) {
@@ -125,6 +151,7 @@ export async function checkPayment(
     return false;
   } catch (error) {
     await updatePaymentRef();
+    await handleFailedPayment(userDocID, courseDetails.id);
     console.error("Error checking payment status:", error);
     setStatus({ currentStatus: "", title: "" });
     setError(
@@ -134,7 +161,11 @@ export async function checkPayment(
   }
 }
 
-export async function handlePaymentTransaction(userDocID, courseDetails) {
+export async function handlePaymentTransaction(
+  userDocID,
+  courseDetails,
+  receiptSerialNo
+) {
   const userPaymentsRef = doc(
     db,
     "users",
@@ -154,12 +185,21 @@ export async function handlePaymentTransaction(userDocID, courseDetails) {
       userPaymentDoc.exists() &&
       userPaymentDoc.data().paymentStatus === "Approved"
     ) {
-      throw new Error("This course has already been purchased.");
+      transaction.update(userPaymentsRef, {
+        paymentStatus: "Approved",
+        updatedDate: Timestamp.fromDate(new Date()),
+        receiptNumber: `KE-${courseDetails.invoiceCode}-${receiptSerialNo}`,
+      });
+      console.error(
+        "This course has already been purchased. probably updated by function"
+      );
+      return;
     }
 
     transaction.update(userPaymentsRef, {
       paymentStatus: "Approved",
-      updatedDate: new Date().toISOString(),
+      updatedDate: Timestamp.fromDate(new Date()),
+      receiptNumber: `KE-${courseDetails.invoiceCode}-${receiptSerialNo}`,
     });
 
     const userData = userDoc.data() || {};
@@ -203,10 +243,11 @@ export async function handleFailedPayment(userDocID, courseID) {
 
       if (
         userPaymentDoc.exists() &&
-        userPaymentDoc.data().paymentStatus === "Intiated"
+        userPaymentDoc.data().paymentStatus !== "Approved"
       ) {
         transaction.update(userPaymentsRef, {
           paymentStatus: "Rejected",
+          updatedDate: Timestamp.fromDate(new Date()),
         });
       }
 
@@ -234,4 +275,3 @@ export const formatDate = () => {
   date.setMinutes(date.getMinutes() + 5);
   return format(date, "dd/MM/yyyy hh:mm a");
 };
-

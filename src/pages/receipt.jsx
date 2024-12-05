@@ -21,39 +21,54 @@ const Receipt = () => {
   const [sent, setSent] = useState("");
   const [isVisible, setIsVisible] = useState(false);
 
+  const showNotification = (message) => {
+    setSent(message);
+    setIsVisible(true);
+    setTimeout(() => {
+      setIsVisible(false);
+      setTimeout(() => setSent(""), 300);
+    }, 5000);
+  };
 
-const showNotification = (message) => {
-  setSent(message);
-  setIsVisible(true);
-  setTimeout(() => {
-    setIsVisible(false);
-    setTimeout(() => setSent(""), 300);
-  }, 5000);
-};
+  function capitalizeFirstLetter(sentence) {
+    if (sentence.length === 0) {
+      return sentence;
+    }
+
+    return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+  }
 
   const generatePDF = async (element) => {
     if (!element) return null;
-
+  
     const a4Width = 595.28;
     const a4Height = 841.89;
     const margin = 20;
-
+  
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
       logging: false,
       scrollY: -window.scrollY,
-      windowWidth: element.scrollWidth,
+      windowWidth: 1024, // Desktop width
       windowHeight: element.scrollHeight,
       onclone: (clonedDoc) => {
         const clonedElement = clonedDoc.getElementById(element.id);
         if (clonedElement) {
-          clonedElement.style.width = `${element.offsetWidth}px`;
-          clonedElement.style.height = `${element.offsetHeight}px`;
+          // Preserve the container's responsive width behavior
+          clonedElement.style.width = '100%';
+          clonedElement.style.maxWidth = '1024px'; // Match desktop max-width
+          
+          // Ensure proper content layout
+          const receiptContainer = clonedElement.querySelector("#receipt-container");
+          if (receiptContainer) {
+            receiptContainer.style.minHeight = 'auto';
+            receiptContainer.style.width = '100%';
+          }
         }
       },
     });
-
+  
     const availableWidth = a4Width - 2 * margin;
     const availableHeight = a4Height - 2 * margin;
     const imageWidth = canvas.width;
@@ -62,18 +77,18 @@ const showNotification = (message) => {
       availableWidth / imageWidth,
       availableHeight / imageHeight
     );
-
+  
     const scaledWidth = imageWidth * scale;
     const scaledHeight = imageHeight * scale;
     const xPos = (a4Width - scaledWidth) / 2;
     const yPos = (a4Height - scaledHeight) / 2;
-
+  
     const pdf = new jsPDF({
       unit: "pt",
       format: "a4",
       orientation: "portrait",
     });
-
+  
     pdf.addImage(
       canvas.toDataURL("image/jpeg", 1.0),
       "JPEG",
@@ -84,7 +99,7 @@ const showNotification = (message) => {
       undefined,
       "FAST"
     );
-
+  
     return pdf;
   };
 
@@ -114,12 +129,12 @@ const showNotification = (message) => {
       let pdfBase64;
       try {
         await getDownloadURL(storageRef);
-        console.log("PDF already exists in storage");
+        console.log("PDF already exists");
       } catch (error) {
         // PDF doesn't exist, upload it
         const pdfBlob = pdf.output("blob");
         await uploadBytesResumable(storageRef, pdfBlob);
-        console.log("PDF uploaded to storage");
+        console.log("uploaded");
       }
 
       // Check if mail document exists
@@ -150,11 +165,11 @@ const showNotification = (message) => {
             ],
           },
         });
-        console.log("Mail document created");
-        showNotification("Sent receipt to your mail")
+        console.log("Mail created");
+        showNotification("Sent receipt to your mail");
       } else {
-        console.log("Mail already sent for this receipt");
-        showNotification("Sent the receipt to your mail already")
+        console.log("Mail already sent");
+        showNotification("Sent the receipt to your mail already");
       }
     } catch (error) {
       console.error("Error processing PDF:", error);
@@ -190,11 +205,11 @@ const showNotification = (message) => {
         <div
           id="receipt-container"
           ref={receiptRef}
-          className="bg-white rounded-lg shadow-lg p-12"
+          className="rounded-lg shadow-lg  border-4 bg-secondary bg-opacity-5"
           style={{ minHeight: "1000px" }}
         >
           {/* Header */}
-          <div className="flex justify-between items-center mb-12 pb-6 border-b border-gray-200">
+          <div className="flex justify-between items-center mb-12  border-b-4  bg-primary bg-opacity-85 border-custom-brown p-6 px-12 rounded-t-md">
             <div className="flex items-center text-center">
               <img
                 src="AB.png"
@@ -211,13 +226,13 @@ const showNotification = (message) => {
           </div>
 
           {/* Receipt Information */}
-          <div className="mb-12">
-            <h2 className="text-2xl font-medium pb-4 border-b border-gray-200 mb-6">
+          <div className="mb-12 p-2 border border-gray-200 rounded-lg bg-primary bg-opacity-10  m-12">
+            <h2 className="text-2xl font-medium pb-4 border-b border-gray-300  mb-6 ">
               Receipt Information
             </h2>
             <table className="w-full">
               <thead>
-                <tr className="text-center border-b-2 border-gray-200">
+                <tr className="text-center border-b-2 border-gray-300">
                   <th className="pb-4 text-lg">Receipt No</th>
                   <th className="pb-4 text-lg">Date</th>
                   <th className="pb-4 text-lg">Event</th>
@@ -236,9 +251,11 @@ const showNotification = (message) => {
           </div>
 
           {/* Total */}
-          <div className="flex justify-between mb-12 pb-6 border-b border-gray-200">
+          <div className="flex justify-between mb-12 pb-6 border-b border-gray-200 m-12">
             <span className="text-gray-700 font-semibold">
-              {receiptData?.amountInWords?.toUpperCase() + " RUPEES" || ""}
+              INR :{" "}
+              {capitalizeFirstLetter(receiptData?.amountInWords) + " rupees" ||
+                ""}
             </span>
             <div className="text-lg">
               <span className="font-medium">Total:</span>
@@ -247,7 +264,7 @@ const showNotification = (message) => {
           </div>
 
           {/* Bill Information */}
-          <div className="mb-12">
+          <div className="mb-12 m-12">
             <h2 className="text-2xl font-medium mb-6">Donor Information</h2>
             <div className="grid grid-cols-1 gap-6">
               <div className="pb-6 border-b border-gray-200">
@@ -256,29 +273,33 @@ const showNotification = (message) => {
                 <p className="text-lg">{receiptData?.fullAddress || " "}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-8 pb-6 border-b border-gray-200">
-                <div>
-                  <h3 className="text-gray-600 mb-2">PAN No</h3>
-                  <p className="text-lg">{receiptData?.pan || ""}</p>
+              <div className="flex justify-between gap-8 pb-6 border-b border-gray-200">
+                <div className="flex flex-col gap-2">
+                  <div>
+                    <h3 className="text-gray-600 mb-1">Aadhar No</h3>
+                    <p className="text-lg">{receiptData?.aadharOrPan || ""}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-gray-600 mb-1">PAN No</h3>
+                    <p className="text-lg">{receiptData?.pan || ""}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-gray-600 mb-2">Aadhar No</h3>
-                  <p className="text-lg">{receiptData?.aadharOrPan || ""}</p>
-                </div>
-                <div>
-                  <h3 className="text-gray-600 mb-2">Phone No</h3>
-                  <p className="text-lg">{receiptData?.phone || ""}</p>
-                </div>
-                <div>
-                  <h3 className="text-gray-600 mb-2">Email ID</h3>
-                  <p className="text-lg">{receiptData?.email || ""}</p>
+                <div className="flex flex-col gap-2">
+                  <div>
+                    <h3 className="text-gray-600 mb-1">Phone No</h3>
+                    <p className="text-lg">{receiptData?.phone || ""}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-gray-600 mb-1">Email ID</h3>
+                    <p className="text-lg">{receiptData?.email || ""}</p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Transaction Details */}
-          <div className="flex justify-between mb-12 p-6 border border-gray-200 rounded-lg bg-gray-50">
+          <div className="flex justify-between mb-12 p-6 border border-gray-200 rounded-lg bg-primary bg-opacity-10  m-12">
             <div className="flex items-center">
               <img src="/success.svg" alt="Success" className="h-8 w-8 mr-4" />
               <span className="text-lg">
@@ -287,7 +308,7 @@ const showNotification = (message) => {
                 <span className="font-medium">{receiptData?.name || ""}</span>
               </span>
             </div>
-            <div className="border-l border-gray-200 pl-6">
+            <div className="border-l border-gray-300 pl-6">
               <span className="text-gray-600">
                 UPI Transaction Reference No.
               </span>
@@ -299,7 +320,7 @@ const showNotification = (message) => {
           </div>
 
           {/* Foundation Details */}
-          <div className="mb-12 pb-6 border-b border-gray-200">
+          <div className="mb-12 pb-6 border-b border-gray-200 m-12">
             <div>
               <h3 className="text-gray-600 mb-2">Address</h3>
               <p className="text-lg">
@@ -311,40 +332,40 @@ const showNotification = (message) => {
           </div>
 
           {/* Terms and Conditions */}
-          <div className="text-gray-600 space-y-3 pb-8">
-            <h3 className="font-medium text-lg mb-4">Terms And Conditions</h3>
-            <p>
-              We Declare That The Amount Charged Is For The Services Provided Or
-              To Be Provided As Mentioned In The Receipt & Contents in The
-              Receipt Are True & Correct.
+          <div className="text-gray-600 space-y-3 pb-8 m-12">
+            <h3 className="font-medium text-md mb-4">Terms And Conditions</h3>
+            <p className="text-sm">
+              We declare that the amount charged is for the services provided or
+              to be provided as mentioned in the receipt & contents in the
+              receipt are true & correct.
             </p>
-            <p>
-              Services Rendered Above Are Exempted from GST Vide Notification No
-              12/2227 Of Central Tax (Rate) Under Chapter 99.
+            <p className="text-sm">
+              Services rendered above are exempted from GST Vide notification no
+              12/2227 of central tax (rate) under chapter 99.
             </p>
-            <p className="pb-6">
-              This Is A System Generated Receipt And Hence No Signature Is
-              Required
+            <p className="pb-6 text-sm">
+              This is a system generated receipt and hence no signature is
+              required
             </p>
           </div>
         </div>
       </div>
       <div
-  className={`
+        className={`
     fixed top-[80vh] left-[5vh] z-30
-    ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
+    ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}
     transition-all duration-300 ease-in-out
   `}
->
-  {sent && (
-    <div className="bg-white flex items-center justify-center gap-3 p-3 rounded-md shadow-lg">
-      <img src="success.svg" alt="" className="size-8" />
-      <div>
-        <strong>{sent}</strong>
+      >
+        {sent && (
+          <div className="bg-white flex items-center justify-center gap-3 p-3 rounded-md shadow-lg">
+            <img src="success.svg" alt="" className="size-8" />
+            <div>
+              <strong>{sent}</strong>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
-  )}
-</div>
     </div>
   );
 };

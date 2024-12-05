@@ -26,13 +26,20 @@ export default function Header() {
     }
   }, [location]);
 
+  useEffect(() => {
+    if (location.pathname !== "/" && !localStorage.getItem("docId")) {
+      navigate("/");
+    }
+  }, []);
+
   const handleLogout = () => {
     localStorage.clear();
     navigate("/", { replace: true }); // Redirect to the home page after logging out
     window.location.reload(); // Optionally reload the page to reset the state
   };
 
-  const showUserInfo = location.pathname !== "/" && location.pathname !== "/search";
+  const showUserInfo =
+    location.pathname !== "/" && location.pathname !== "/search";
 
   return (
     <header className="bg-[#E5870D] shadow-lg p-2">
@@ -46,14 +53,17 @@ export default function Header() {
               height={48}
               className="rounded-full"
             />
-            <h1 className="font-bold text-2xl text-white hidden sm:block">Sri Kalki Events</h1>
+            <h1 className="font-bold text-2xl text-white hidden sm:block">
+              Sri Kalki Events
+            </h1>
           </div>
 
           {/* Show user info and logout button on non-home and non-search paths */}
           {showUserInfo && (
             <div className="hidden md:flex items-center space-x-4">
               <p className="text-white font-medium">
-                You&apos;re paying for: <span className="font-bold">{currentUser}</span>
+                You&apos;re paying for:{" "}
+                <span className="font-bold">{currentUser}</span>
               </p>
               <button
                 onClick={handleLogout}
@@ -78,7 +88,8 @@ export default function Header() {
         {showUserInfo && isMenuOpen && (
           <div className="mt-4 md:hidden">
             <p className="text-white font-medium mb-2">
-              You&apos;re paying for: <span className="font-bold">{currentUser}</span>
+              You&apos;re paying for:{" "}
+              <span className="font-bold">{currentUser}</span>
             </p>
             <button
               onClick={handleLogout}
