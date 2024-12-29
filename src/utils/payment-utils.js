@@ -61,15 +61,15 @@ export async function fetchGuideNames() {
   }
 }
 
-export async function makePayment({ reqBodyData }) {
+export async function makePayment({ reqBodyData, courseDetails }) {
   try {
-    const { data } = await axios.post(
-      import.meta.env.VITE_MAKEPAY_API,
-      reqBodyData,
-      {
-        headers: { "content-type": "application/json; charset=utf-8" },
-      }
-    );
+    const paymentApiUrl =
+      courseDetails?.EF
+        ? import.meta.env.VITE_EF_MAKEPAY_API
+        : import.meta.env.VITE_MAKEPAY_API;
+    const { data } = await axios.post(paymentApiUrl, reqBodyData, {
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
     return data.data?.success ? data.data.BankRRN : null;
   } catch (error) {
     console.error("Error making payment:", error);
@@ -102,7 +102,7 @@ export async function checkPayment(
       const { data } = await axios.get(
         `${import.meta.env.VITE_CHECKPAY_API}${bankRRN}`
       );
-      console.log( data?.data?.txnStatus);
+      console.log(data?.data?.txnStatus);
 
       if (attempt === 0) await updatePaymentRef();
 

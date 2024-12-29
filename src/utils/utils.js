@@ -33,7 +33,7 @@ export const isFieldInvalid = (field, value) => {
     }
 
     case "pan": {
-      const panRegex = /^[A-Z]{5}\d{4}[A-Z]$/;
+      const panRegex = /^[A-Za-z]{5}\d{4}[A-Za-z]$/;
       if (!value.trim()) return "PAN number is required.";
       if (!panRegex.test(value))
         return "PAN must follow the format: 5 letters, 4 digits, and 1 letter.";

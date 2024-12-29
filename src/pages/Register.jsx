@@ -94,6 +94,7 @@ function Register() {
             country: userData.country || "India",
             pincode: userData.pincode || "",
             aadhar: userData.aadhar || "",
+            pan: userData.pan || "",
             gothram: userData.gothram || "",
             sankalpam: userData.sankalpam || "",
           }));
@@ -228,7 +229,8 @@ function Register() {
           country: formData.country,
           pan: formData.pan || "",
           aadharOrPan: formData.aadhar,
-          merchantTranId: ids?.merchantTranId
+          merchantTranId: ids?.merchantTranId,
+          EF: courseDetails?.EF || false,
         });
 
         const pending = userDoc?.data()?.pending || [];
@@ -241,7 +243,10 @@ function Register() {
         currentStatus: "Sending UPI payment request.",
       });
 
-      const BankRRN = await makePayment({ reqBodyData: requestBody });
+      const BankRRN = await makePayment({
+        reqBodyData: requestBody,
+        courseDetails: courseDetails,
+      });
       console.log(BankRRN);
 
       if (BankRRN) {
@@ -505,16 +510,16 @@ function Register() {
             )}
           </div>
 
-          {formData.amount >= 50000 ? (
+          {courseDetails?.EF || formData.amount >= 50000 ? (
             <div>
               <InputField
                 label="PAN number"
                 value={formData.pan}
                 onChange={(e) => {
                   handleOnChange("pan", e.target.value);
-                  setRequestBody({ ...requestBody, payerVa: e.target.value });
+                  setRequestBody({ ...requestBody, pan: e.target.value });
                 }}
-                hasError={invalidFields.upiId}
+                hasError={invalidFields.pan}
               />
               {invalidFields.pan && (
                 <p className="text-red-500 text-sm mt-1">{invalidFields.pan}</p>

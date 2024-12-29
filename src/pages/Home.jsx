@@ -12,10 +12,10 @@ function Home() {
   const email = localStorage.getItem("email");
   const [unRegisteredEvents, setUnRegisteredEvents] = useState([]);
   const [registeredEvents, setRegisteredEvents] = useState([]);
-  const [userCourses, setCourses] = useState([]); 
-  const [pendingCourses, setPendingCourses] = useState([]); 
-  const [userPayments, setUserPayments] = useState([]); 
-  const [isUserLoaded, setIsUserLoaded] = useState(false); 
+  const [userCourses, setCourses] = useState([]);
+  const [pendingCourses, setPendingCourses] = useState([]);
+  const [userPayments, setUserPayments] = useState([]);
+  const [isUserLoaded, setIsUserLoaded] = useState(false);
 
   async function getUser() {
     const userDocRef = doc(db, "users", docId);
@@ -25,12 +25,12 @@ function Home() {
       const data = userDoc.data();
       if (data.phone === "+91" + phone || data.email === email) {
         localStorage.setItem("name", data.name);
-        setCourses(data.courses || []); 
-        setPendingCourses(data.pending || []); 
-        await getUserPayments(); 
+        setCourses(data.courses || []);
+        setPendingCourses(data.pending || []);
+        await getUserPayments();
       }
     }
-    setIsUserLoaded(true); 
+    setIsUserLoaded(true);
   }
 
   async function getUserPayments() {
@@ -47,7 +47,7 @@ function Home() {
       };
     });
 
-    setUserPayments(payments); 
+    setUserPayments(payments);
   }
 
   async function getAllCourses() {
@@ -55,8 +55,7 @@ function Home() {
     const allEvents = querySnapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
       .filter(
-        (event) =>
-          event.active && event.payment_gateway_website
+        (event) =>( event.payment_gateway_website && (event.EF || event.active))
       );
 
     const registered = allEvents.filter((event) =>
@@ -91,10 +90,9 @@ function Home() {
         types={types}
         registeredCourses={registeredEvents}
         unregisteredCourses={unRegisteredEvents}
-        pendingCourses={pendingCourses} 
+        pendingCourses={pendingCourses}
         userPayments={userPayments}
       />
-      
     </div>
   );
 }

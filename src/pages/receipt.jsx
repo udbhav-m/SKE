@@ -20,6 +20,8 @@ const Receipt = () => {
   const { receiptData } = location.state || {};
   const [sent, setSent] = useState("");
   const [isVisible, setIsVisible] = useState(false);
+  const [isEF, setEF] = useState(false);
+  const [mailSent, setMailSent] = useState(false);
 
   const showNotification = (message) => {
     setSent(message);
@@ -34,7 +36,6 @@ const Receipt = () => {
     if (sentence.length === 0) {
       return sentence;
     }
-
     return sentence.charAt(0).toUpperCase() + sentence.slice(1);
   }
 
@@ -44,29 +45,55 @@ const Receipt = () => {
     const a4Width = 595.28;
     const a4Height = 841.89;
     const margin = 20;
+
+    // Create styles for different background colors
+    const bgStyle = isEF ? 
+      'rgba(76, 175, 80, 0.1)' :   // EF green with 0.1 opacity
+      'rgba(255, 183, 117, 0.1)';  // Regular orange with 0.1 opacity
+    
+    const headerBgStyle = isEF ? 
+      'rgba(76, 175, 80, 0.85)' :  // EF green with 0.85 opacity
+      'rgba(255, 183, 117, 0.85)'; // Regular orange with 0.85 opacity
+
+    // Add a style tag to handle backgrounds
+    const styleTag = document.createElement('style');
+    styleTag.textContent = `
+      .bg-opacity-custom {
+        background-color: ${bgStyle} !important;
+      }
+      .header-bg-custom {
+        background-color: ${headerBgStyle} !important;
+      }
+    `;
+    document.head.appendChild(styleTag);
+
+    // Add temporary classes to elements
+    const headerDiv = element.querySelector('[class*="border-custom-brown"]');
+    if (headerDiv) {
+      headerDiv.classList.add('header-bg-custom');
+    }
+
+    const bgElements = element.querySelectorAll('[class*="bg-opacity-10"]');
+    bgElements.forEach(el => {
+      el.classList.add('bg-opacity-custom');
+    });
   
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
-      logging: false,
+      logging: true,
       scrollY: -window.scrollY,
-      windowWidth: 1024, // Desktop width
+      windowWidth: 1024,
       windowHeight: element.scrollHeight,
-      onclone: (clonedDoc) => {
-        const clonedElement = clonedDoc.getElementById(element.id);
-        if (clonedElement) {
-          // Preserve the container's responsive width behavior
-          clonedElement.style.width = '100%';
-          clonedElement.style.maxWidth = '1024px'; // Match desktop max-width
-          
-          // Ensure proper content layout
-          const receiptContainer = clonedElement.querySelector("#receipt-container");
-          if (receiptContainer) {
-            receiptContainer.style.minHeight = 'auto';
-            receiptContainer.style.width = '100%';
-          }
-        }
-      },
+    });
+
+    // Cleanup: remove temporary styles and classes
+    styleTag.remove();
+    if (headerDiv) {
+      headerDiv.classList.remove('header-bg-custom');
+    }
+    bgElements.forEach(el => {
+      el.classList.remove('bg-opacity-custom');
     });
   
     const availableWidth = a4Width - 2 * margin;
@@ -101,8 +128,7 @@ const Receipt = () => {
     );
   
     return pdf;
-  };
-
+};
   const handleDownloadPDF = async () => {
     try {
       const pdf = await generatePDF(receiptRef.current);
@@ -115,6 +141,8 @@ const Receipt = () => {
   };
 
   async function sendMail() {
+    if (mailSent) return;  // Prevent duplicate sends
+    
     try {
       const pdf = await generatePDF(receiptRef.current);
       if (!pdf) return;
@@ -125,26 +153,25 @@ const Receipt = () => {
       const storageRef = ref(storage, fileName);
       const mailRef = doc(db, "mail", receiptData.receiptNumber);
 
-      // Check if PDF exists in storage
       let pdfBase64;
       try {
         await getDownloadURL(storageRef);
         console.log("PDF already exists");
       } catch (error) {
-        // PDF doesn't exist, upload it
         const pdfBlob = pdf.output("blob");
         await uploadBytesResumable(storageRef, pdfBlob);
         console.log("uploaded");
       }
 
-      // Check if mail document exists
       const mailDoc = await getDoc(mailRef);
       if (!mailDoc.exists()) {
         pdfBase64 = pdf.output("datauristring").split(",")[1];
+        const foundationName = isEF ? 'Sri Amma Bhagavan Earth Foundation' : 'Sri Amma Bhagavan Foundation India';
+        
         await setDoc(mailRef, {
           to: receiptData.email,
           message: {
-            subject: `Receipt for ${receiptData.courseName}`,
+            subject: `Receipt for ${receiptData.courseName} - ${foundationName}`,
             html: `
                 <h4>Thank you for your payment</h4>
                 <p>Dear ${receiptData.name},</p>
@@ -153,7 +180,7 @@ const Receipt = () => {
                 <p>Receipt Number: ${receiptData.receiptNumber}</p>
                 <br>
                 <p>Best regards,</p>
-                <p>Sri Amma Bhagavan Foundation India</p>
+                <p>${foundationName}</p>
               `,
             attachments: [
               {
@@ -167,9 +194,11 @@ const Receipt = () => {
         });
         console.log("Mail created");
         showNotification("Sent receipt to your mail");
+        setMailSent(true);  // Mark as sent
       } else {
         console.log("Mail already sent");
         showNotification("Sent the receipt to your mail already");
+        setMailSent(true);  // Mark as sent even if it existed before
       }
     } catch (error) {
       console.error("Error processing PDF:", error);
@@ -177,12 +206,26 @@ const Receipt = () => {
   }
 
   useEffect(() => {
-    sendMail();
-  }, []);
+    if (receiptData) {
+      const isEarthFoundation = Boolean(receiptData.EF);
+      setEF(isEarthFoundation);
+    }
+  }, [receiptData]);
+
+  useEffect(() => {
+    if (receiptData && !mailSent) {
+      const timer = setTimeout(() => {
+        sendMail();
+      }, 1000); // Give a small delay to ensure state is updated
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isEF, receiptData, mailSent]);
 
   if (!receiptData) {
     return <Loader />;
   }
+
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -209,7 +252,11 @@ const Receipt = () => {
           style={{ minHeight: "1000px" }}
         >
           {/* Header */}
-          <div className="flex justify-between items-center mb-12  border-b-4  bg-primary bg-opacity-85 border-custom-brown p-6 px-12 rounded-t-md">
+          <div
+            className={`flex justify-between items-center mb-12  border-b-4 bg-opacity-85 border-custom-brown  p-6 px-12 rounded-t-md  ${
+              isEF ? "bg-[#4CAF50]" : "bg-primary"
+            }`}
+          >
             <div className="flex items-center text-center">
               <img
                 src="AB.png"
@@ -219,14 +266,18 @@ const Receipt = () => {
               <div className="text-xl font-serif">
                 Sri Amma Bhagavan
                 <br />
-                Foundation India
+                {isEF ? "Earth Foundation" : "Foundation India"}
               </div>
             </div>
             <h1 className="text-5xl font-serif">Receipt</h1>
           </div>
 
           {/* Receipt Information */}
-          <div className="mb-12 p-2 border border-gray-200 rounded-lg bg-primary bg-opacity-10  m-12">
+          <div
+            className={`mb-12 p-2 border border-gray-200 rounded-lg bg-opacity-10  m-12 ${
+              isEF ? "bg-[#4CAF50]" : "bg-primary"
+            }`}
+          >
             <h2 className="text-2xl font-medium pb-4 border-b border-gray-300  mb-6 ">
               Receipt Information
             </h2>
@@ -299,7 +350,11 @@ const Receipt = () => {
           </div>
 
           {/* Transaction Details */}
-          <div className="flex justify-between mb-12 p-6 border border-gray-200 rounded-lg bg-primary bg-opacity-10  m-12">
+          <div
+            className={`flex justify-between mb-12 p-6 border border-gray-200 rounded-lg  bg-opacity-10  m-12 ${
+              isEF ? "bg-[#4CAF50]" : "bg-primary"
+            }`}
+          >
             <div className="flex items-center">
               <img src="/success.svg" alt="Success" className="h-8 w-8 mr-4" />
               <span className="text-lg">
@@ -316,6 +371,15 @@ const Receipt = () => {
               <span className="text-lg font-medium">
                 {receiptData?.paymentId || ""}
               </span>
+              {receiptData?.merchantTranId && isEF && (
+                <div>
+                  <span className="text-gray-600 pt-1">Transaction ID</span>
+                  <br />
+                  <span className="text-lg font-medium">
+                    {receiptData?.merchantTranId}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -324,7 +388,9 @@ const Receipt = () => {
             <div>
               <h3 className="text-gray-600 mb-2">Address</h3>
               <p className="text-lg">
-                Sri Amma Bhagavan Foundation India.
+                {isEF
+                  ? " Sri Amma Bhagavan Earth Foundation."
+                  : " Sri Amma Bhagavan Foundation India"}
                 <br />
                 No 1, 2nd Cross, Domlur 2nd Stage, Bangalore- 560071
               </p>
