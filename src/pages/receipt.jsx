@@ -33,30 +33,30 @@ const Receipt = () => {
   };
 
   function capitalizeFirstLetter(sentence) {
-    if (sentence.length === 0) {
+    if (sentence?.length === 0) {
       return sentence;
     }
-    return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+    return sentence?.charAt(0).toUpperCase() + sentence?.slice(1);
   }
 
   const generatePDF = async (element) => {
     if (!element) return null;
-  
+
     const a4Width = 595.28;
     const a4Height = 841.89;
     const margin = 20;
 
     // Create styles for different background colors
-    const bgStyle = isEF ? 
-      'rgba(76, 175, 80, 0.1)' :   // EF green with 0.1 opacity
-      'rgba(255, 183, 117, 0.1)';  // Regular orange with 0.1 opacity
-    
-    const headerBgStyle = isEF ? 
-      'rgba(76, 175, 80, 0.85)' :  // EF green with 0.85 opacity
-      'rgba(255, 183, 117, 0.85)'; // Regular orange with 0.85 opacity
+    const bgStyle = isEF
+      ? "rgba(76, 175, 80, 0.1)" // EF green with 0.1 opacity
+      : "rgba(255, 183, 117, 0.1)"; // Regular orange with 0.1 opacity
+
+    const headerBgStyle = isEF
+      ? "rgba(76, 175, 80, 0.85)" // EF green with 0.85 opacity
+      : "rgba(255, 183, 117, 0.85)"; // Regular orange with 0.85 opacity
 
     // Add a style tag to handle backgrounds
-    const styleTag = document.createElement('style');
+    const styleTag = document.createElement("style");
     styleTag.textContent = `
       .bg-opacity-custom {
         background-color: ${bgStyle} !important;
@@ -70,14 +70,14 @@ const Receipt = () => {
     // Add temporary classes to elements
     const headerDiv = element.querySelector('[class*="border-custom-brown"]');
     if (headerDiv) {
-      headerDiv.classList.add('header-bg-custom');
+      headerDiv.classList.add("header-bg-custom");
     }
 
     const bgElements = element.querySelectorAll('[class*="bg-opacity-10"]');
-    bgElements.forEach(el => {
-      el.classList.add('bg-opacity-custom');
+    bgElements.forEach((el) => {
+      el.classList.add("bg-opacity-custom");
     });
-  
+
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
@@ -90,12 +90,12 @@ const Receipt = () => {
     // Cleanup: remove temporary styles and classes
     styleTag.remove();
     if (headerDiv) {
-      headerDiv.classList.remove('header-bg-custom');
+      headerDiv.classList.remove("header-bg-custom");
     }
-    bgElements.forEach(el => {
-      el.classList.remove('bg-opacity-custom');
+    bgElements.forEach((el) => {
+      el.classList.remove("bg-opacity-custom");
     });
-  
+
     const availableWidth = a4Width - 2 * margin;
     const availableHeight = a4Height - 2 * margin;
     const imageWidth = canvas.width;
@@ -104,18 +104,18 @@ const Receipt = () => {
       availableWidth / imageWidth,
       availableHeight / imageHeight
     );
-  
+
     const scaledWidth = imageWidth * scale;
     const scaledHeight = imageHeight * scale;
     const xPos = (a4Width - scaledWidth) / 2;
     const yPos = (a4Height - scaledHeight) / 2;
-  
+
     const pdf = new jsPDF({
       unit: "pt",
       format: "a4",
       orientation: "portrait",
     });
-  
+
     pdf.addImage(
       canvas.toDataURL("image/jpeg", 1.0),
       "JPEG",
@@ -126,9 +126,9 @@ const Receipt = () => {
       undefined,
       "FAST"
     );
-  
+
     return pdf;
-};
+  };
   const handleDownloadPDF = async () => {
     try {
       const pdf = await generatePDF(receiptRef.current);
@@ -141,8 +141,8 @@ const Receipt = () => {
   };
 
   async function sendMail() {
-    if (mailSent) return;  // Prevent duplicate sends
-    
+    if (mailSent) return; // Prevent duplicate sends
+
     try {
       const pdf = await generatePDF(receiptRef.current);
       if (!pdf) return;
@@ -166,8 +166,10 @@ const Receipt = () => {
       const mailDoc = await getDoc(mailRef);
       if (!mailDoc.exists()) {
         pdfBase64 = pdf.output("datauristring").split(",")[1];
-        const foundationName = isEF ? 'Sri Amma Bhagavan Earth Foundation' : 'Sri Amma Bhagavan Foundation India';
-        
+        const foundationName = isEF
+          ? "Sri Amma Bhagavan Earth Foundation"
+          : "Sri Amma Bhagavan Foundation India";
+
         await setDoc(mailRef, {
           to: receiptData.email,
           message: {
@@ -194,11 +196,11 @@ const Receipt = () => {
         });
         console.log("Mail created");
         showNotification("Sent receipt to your mail");
-        setMailSent(true);  // Mark as sent
+        setMailSent(true); // Mark as sent
       } else {
         console.log("Mail already sent");
         showNotification("Sent the receipt to your mail already");
-        setMailSent(true);  // Mark as sent even if it existed before
+        setMailSent(true); // Mark as sent even if it existed before
       }
     } catch (error) {
       console.error("Error processing PDF:", error);
@@ -217,7 +219,7 @@ const Receipt = () => {
       const timer = setTimeout(() => {
         sendMail();
       }, 1000); // Give a small delay to ensure state is updated
-      
+
       return () => clearTimeout(timer);
     }
   }, [isEF, receiptData, mailSent]);
@@ -225,7 +227,6 @@ const Receipt = () => {
   if (!receiptData) {
     return <Loader />;
   }
-
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -286,7 +287,9 @@ const Receipt = () => {
                 <tr className="text-center border-b-2 border-gray-300">
                   <th className="pb-4 text-lg">Receipt No</th>
                   <th className="pb-4 text-lg">Date</th>
-                  <th className="pb-4 text-lg">Event</th>
+                  <th className="pb-4 text-lg">
+                    {isEF ? "Donation" : "Event"}
+                  </th>
                   <th className="pb-4 text-lg">Amount</th>
                 </tr>
               </thead>
@@ -325,25 +328,14 @@ const Receipt = () => {
               </div>
 
               <div className="flex justify-between gap-8 pb-6 border-b border-gray-200">
-                <div className="flex flex-col gap-2">
-                  <div>
-                    <h3 className="text-gray-600 mb-1">Aadhar No</h3>
-                    <p className="text-lg">{receiptData?.aadharOrPan || ""}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-gray-600 mb-1">PAN No</h3>
-                    <p className="text-lg">{receiptData?.pan || ""}</p>
-                  </div>
+                <div>
+                  <h3 className="text-gray-600 mb-1">Phone No</h3>
+                  <p className="text-lg">{receiptData?.phone || ""}</p>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <div>
-                    <h3 className="text-gray-600 mb-1">Phone No</h3>
-                    <p className="text-lg">{receiptData?.phone || ""}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-gray-600 mb-1">Email ID</h3>
-                    <p className="text-lg">{receiptData?.email || ""}</p>
-                  </div>
+
+                <div>
+                  <h3 className="text-gray-600 mb-1">Email ID</h3>
+                  <p className="text-lg">{receiptData?.email || ""}</p>
                 </div>
               </div>
             </div>
@@ -398,18 +390,20 @@ const Receipt = () => {
           </div>
 
           {/* Terms and Conditions */}
-          <div className="text-gray-600 space-y-3 pb-8 m-12">
-            <h3 className="font-medium text-md mb-4">Terms And Conditions</h3>
-            <p className="text-sm">
-              We declare that the amount charged is for the services provided or
-              to be provided as mentioned in the receipt & contents in the
-              receipt are true & correct.
-            </p>
-            <p className="text-sm">
-              Services rendered above are exempted from GST Vide notification no
-              12/2227 of central tax (rate) under chapter 99.
-            </p>
-            <p className="pb-6 text-sm">
+          <div className="text-gray-600 space-y-3  m-12">
+            <div className={`${isEF ? "hidden" : "visible"}`}>
+              <h3 className="font-medium text-md mb-4">Terms And Conditions</h3>
+              <p className="text-sm">
+                We declare that the amount charged is for the services provided
+                or to be provided as mentioned in the receipt & contents in the
+                receipt are true & correct.
+              </p>
+              <p className="text-sm">
+                Services rendered above are exempted from GST Vide notification
+                no 12/2227 of central tax (rate) under chapter 99.
+              </p>
+            </div>
+            <p className="text-xs">
               This is a system generated receipt and hence no signature is
               required
             </p>

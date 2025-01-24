@@ -246,6 +246,8 @@ function Register() {
       const BankRRN = await makePayment({
         reqBodyData: requestBody,
         courseDetails: courseDetails,
+        setStatus: setStatus,
+        setError: setError,
       });
       console.log(BankRRN);
 
@@ -274,10 +276,6 @@ function Register() {
             { merge: true }
           );
         });
-        setStatus({ currentStatus: "", title: "" });
-        setError(
-          "UPI ID you've provided is invalid or try refreshing the page."
-        );
         setInprogress(false);
       }
     } catch (error) {

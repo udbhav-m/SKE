@@ -61,15 +61,29 @@ export async function fetchGuideNames() {
   }
 }
 
-export async function makePayment({ reqBodyData, courseDetails }) {
+export async function makePayment({
+  reqBodyData,
+  courseDetails,
+  setStatus,
+  setError,
+}) {
   try {
-    const paymentApiUrl =
-      courseDetails?.EF
-        ? import.meta.env.VITE_EF_MAKEPAY_API
-        : import.meta.env.VITE_MAKEPAY_API;
+    const paymentApiUrl = courseDetails?.EF
+      ? import.meta.env.VITE_EF_MAKEPAY_API
+      : import.meta.env.VITE_MAKEPAY_API;
     const { data } = await axios.post(paymentApiUrl, reqBodyData, {
       headers: { "content-type": "application/json; charset=utf-8" },
     });
+    if (data?.data?.message === "Virtual address not present") {
+      setStatus({ currentStatus: "", title: "" });
+      setError("UPI ID you've provided is invalid or try refreshing the page.");
+      return null;
+    }
+    if (data?.message !== "Transaction initiated") {
+      setStatus({ currentStatus: "", title: "" });
+      setError("Server error: Please decline the payment request if prompted.");
+      return null;
+    }
     return data.data?.success ? data.data.BankRRN : null;
   } catch (error) {
     console.error("Error making payment:", error);

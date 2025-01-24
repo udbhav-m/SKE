@@ -52,15 +52,17 @@ function Home() {
 
   async function getAllCourses() {
     const querySnapshot = await getDocs(collection(db, "events"));
+    const allInEvents = querySnapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
     const allEvents = querySnapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
       .filter(
-        (event) =>( event.payment_gateway_website && (event.EF || event.active))
+        (event) => event.payment_gateway_website && (event.EF || event.active)
       );
 
-    const registered = allEvents.filter((event) =>
+    const registered = allInEvents.filter((event) =>
       userCourses.includes(event.id)
-    );
+    ).sort((a, b) => b?.created_on - a?.created_on);
 
     const unregistered = allEvents.filter(
       (event) => !userCourses.includes(event.id)
