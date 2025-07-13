@@ -147,7 +147,6 @@ function Register() {
     ids = generateUniqueIds();
     date = formatDate();
     const userDocID = localStorage.getItem("docId");
-    console.log(formData)
 
     setRequestBody((prevData) => ({
       ...prevData,

@@ -64,7 +64,6 @@ function Home() {
     const registered = allInEvents.filter((event) =>
       userCourses.includes(event.id)
     ).sort((a, b) => b?.created_on - a?.created_on);
-    console.log("reg", registered)
 
     const unregistered = allEvents.filter(
       (event) => !userCourses.includes(event.id)
