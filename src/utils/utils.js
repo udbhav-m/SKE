@@ -45,6 +45,11 @@ export const isFieldInvalid = (field, value) => {
         return "Please select a Dasa name.";
       break;
 
+    case "state":
+      if (!value || value === "Select State" || value === "")
+        return "Please select a State.";
+      break;
+
     case "address":
       if (!value.trim()) return "Address cannot be empty.";
       break;
@@ -56,9 +61,9 @@ export const isFieldInvalid = (field, value) => {
       if (!value.trim()) return "City or district is required.";
       break;
 
-    case "state":
-      if (!value.trim()) return "State is required.";
-      break;
+    // case "state":
+    //   if (!value.trim()) return "State is required.";
+    //   break;
 
     case "country":
       if (!value.trim()) return "Country is required.";
@@ -143,6 +148,46 @@ export const countriesList = [
   "Singapore",
   "others",
 ];
+
+export const indianStates = [
+  'Andhra Pradesh',
+  'Arunachal Pradesh',
+  'Assam',
+  'Bihar',
+  'Chhattisgarh',
+  'Goa',
+  'Gujarat',
+  'Haryana',
+  'Himachal Pradesh',
+  'Jharkhand',
+  'Karnataka',
+  'Kerala',
+  'Madhya Pradesh',
+  'Maharashtra',
+  'Manipur',
+  'Meghalaya',
+  'Mizoram',
+  'Nagaland',
+  'Odisha',
+  'Punjab',
+  'Rajasthan',
+  'Sikkim',
+  'Tamil Nadu',
+  'Telangana',
+  'Tripura',
+  'Uttar Pradesh',
+  'Uttarakhand',
+  'West Bengal',
+  'Andaman and Nicobar Islands',
+  'Chandigarh',
+  'Dadra, Nagar Haveli, Daman and Diu',
+  'Delhi',
+  'Jammu and Kashmir',
+  'Ladakh',
+  'Lakshadweep',
+  'Puducherry',
+  'Others',
+  ];
 
 export function getCurrentTimestamp() {
   const now = new Date();

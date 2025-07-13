@@ -57,7 +57,8 @@ function Home() {
     const allEvents = querySnapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
       .filter(
-        (event) => event.payment_gateway_website && (event.EF || event.active)
+        (event) =>  event.payment_gateway_website && (event.EF || event.active) && !event.pj_web_status
+        
       );
 
     const registered = allInEvents.filter((event) =>

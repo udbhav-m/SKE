@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ArrowLeft } from "lucide-react";
 import InputField from "../components/InputField";
 import SelectField from "../components/SelectField";
@@ -20,11 +20,13 @@ import {
   checkPhoneEmail,
   countriesList,
   getCurrentTimestamp,
+  indianStates,
   isFieldInvalid,
   setPhoneMailName,
 } from "../utils/utils";
 import { format } from "date-fns";
 import n2words from "n2words";
+import Consent from "../components/Consent";
 
 function Register() {
   const location = useLocation();
@@ -33,6 +35,7 @@ function Register() {
   var ids = generateUniqueIds();
   const countries = countriesList;
   const { courseDetails } = location.state;
+  const [consent, setConsent] = useState(false);
 
   const [guides, setGuides] = useState([]);
   const [error, setError] = useState("");
@@ -40,6 +43,15 @@ function Register() {
   const [inProgress, setInprogress] = useState(false);
   const [invalidFields, setInvalidFields] = useState({});
   const [userDoc, setUserDoc] = useState(null);
+
+  const [fieldTypes, setFieldTypes] = useState({
+    aadhar: "password",
+    pan: "password",
+  });
+  const timeoutRefs = useRef({
+    aadhar: null,
+    pan: null,
+  });
 
   const [formData, setFormData] = useState({
     name: "",
@@ -52,6 +64,7 @@ function Register() {
     aadhar: "",
     gothram: "",
     sankalpam: "",
+    leaderName:"",
     email: "",
     phone: "",
     pan: "",
@@ -87,10 +100,11 @@ function Register() {
           setUserDoc(userDocSnapshot);
           setFormData((prevData) => ({
             ...prevData,
-            dasajiName: userData.guide || userData.dasajiName || "",
+            dasajiName: "",
+            leaderName: "",
             address: userData.address || "",
             cityOrDist: userData.cityOrDist || userData.city || "",
-            state: userData.state || "",
+            state: "",
             country: userData.country || "India",
             pincode: userData.pincode || "",
             aadhar: userData.aadhar || "",
@@ -119,6 +133,14 @@ function Register() {
 
     initializeData();
   }, [courseDetails]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(timeoutRefs.current).forEach(timeout => {
+        if (timeout) clearTimeout(timeout);
+      });
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -212,6 +234,7 @@ function Register() {
           paymentType: "UPI",
           courseId: courseDetails.id,
           courseName: courseDetails.name,
+          leaderName: formData.leaderName || "" ,
           phone: formData.phone,
           email: formData.email,
           emailphone:
@@ -230,6 +253,7 @@ function Register() {
           pan: formData.pan || "",
           aadharOrPan: formData.aadhar,
           merchantTranId: ids?.merchantTranId,
+          consent: consent,
           EF: courseDetails?.EF || false,
         });
 
@@ -264,17 +288,18 @@ function Register() {
         setInprogress(false);
       } else {
         await runTransaction(db, async (transaction) => {
-          const pending = userDoc?.data()?.pending || [];
-          const updatedPending = pending.filter(
-            (id) => id !== courseDetails.id
-          );
+          console.log("Went to else and not doing anything");
+          // const pending = userDoc?.data()?.pending || [];
+          // const updatedPending = pending.filter(
+          //   (id) => id !== courseDetails.id
+          // );
 
-          transaction.delete(userPaymentsRef);
-          transaction.set(
-            userDocRef,
-            { pending: updatedPending },
-            { merge: true }
-          );
+          // transaction.delete(userPaymentsRef);
+          // transaction.set(
+          //   userDocRef,
+          //   { pending: updatedPending },
+          //   { merge: true }
+          // );
         });
         setInprogress(false);
       }
@@ -284,6 +309,8 @@ function Register() {
       setError("Something went wrong. Please try again.");
       setStatus({ currentStatus: "", title: "" });
     }
+
+    
   };
 
   const handleOnChange = (field, value) => {
@@ -298,10 +325,39 @@ function Register() {
       ...prevData,
       [field]: value,
     }));
+
+    // Handle password field logic for aadhar and pan
+    if (field === "aadhar" || field === "pan") {
+      // Clear any existing timeout for this field
+      if (timeoutRefs.current[field]) {
+        clearTimeout(timeoutRefs.current[field]);
+      }
+
+      // Show as text field immediately
+      setFieldTypes(prev => ({
+        ...prev,
+        [field]: "text"
+      }));
+
+      // Set timeout to change to password after 1 second
+      timeoutRefs.current[field] = setTimeout(() => {
+        setFieldTypes(prev => ({
+          ...prev,
+          [field]: "password"
+        }));
+      }, 1000);
+    }
   };
 
   return (
-    <>
+  <div className={`relative ${!consent ? "overflow-hidden h-screen" : ""}`}>     
+   <div
+        className={`${
+          consent ? "hidden" : "visible"
+        } bg-black bg-opacity-80 fixed inset-0 z-50 w-full h-full flex items-center justify-center overflow-y-auto `}
+      >
+        <Consent setConsent={setConsent} />
+      </div>
       <div
         className="inline-block mt-6 ml-6 hover:cursor-pointer"
         onClick={() => navigate("/home")}
@@ -385,12 +441,19 @@ function Register() {
           </div>
 
           <div>
-            <InputField
+            <SelectField
+              label="State"
+              value={formData.state}
+              onChange={(e) => handleOnChange("state", e.target.value)}
+              options={indianStates}
+              hasError={invalidFields.state}
+            />
+            {/* <InputField
               label="State"
               value={formData.state}
               onChange={(e) => handleOnChange("state", e.target.value)}
               hasError={invalidFields.state}
-            />
+            /> */}
             {invalidFields.state && (
               <p className="text-red-500 text-sm mt-1">{invalidFields.state}</p>
             )}
@@ -428,6 +491,7 @@ function Register() {
           <div>
             <InputField
               label="Aadhar"
+              type={fieldTypes.aadhar}
               value={formData.aadhar}
               onChange={(e) => handleOnChange("aadhar", e.target.value)}
               hasError={invalidFields.aadhar}
@@ -508,10 +572,22 @@ function Register() {
             )}
           </div>
 
+          <div>
+            <InputField
+              label="Leader Name"
+              value={formData.leaderName}
+              onChange={(e) => handleOnChange("leaderName", e.target.value)}
+            />
+            {invalidFields.name && (
+              <p className="text-red-500 text-sm mt-1">{invalidFields.leaderName}</p>
+            )}
+          </div>
+
           {courseDetails?.EF || formData.amount >= 50000 ? (
             <div>
               <InputField
                 label="PAN number"
+                type={fieldTypes.pan}
                 value={formData.pan}
                 onChange={(e) => {
                   handleOnChange("pan", e.target.value);
@@ -546,7 +622,7 @@ function Register() {
           {inProgress ? "Processing..." : "Submit"}
         </button>
       </FormContainer>
-    </>
+    </div>
   );
 }
 

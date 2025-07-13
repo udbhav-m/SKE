@@ -24,7 +24,7 @@ const firebaseConfigProd = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfigProd);
+const app = initializeApp(firebaseConfigDev);
 
 // Initialize Firebase services
 export const db = getFirestore(app);
